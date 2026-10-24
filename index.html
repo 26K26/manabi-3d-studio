@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>まなび3D Studio — v0.4.4 配置改善版</title>
+<title>まなび3D Studio — v0.4.5 範囲選択・穴あけ版</title>
 <style>
 :root{font-family:system-ui,-apple-system,"Noto Sans JP",sans-serif;background:#0b1120;color:#eef3ff;--line:#2a3852;--muted:#a7b6ce;--panel:#101b30;--accent:#78baff}*{box-sizing:border-box}
 body{margin:0}button,select,input{font:inherit}button{background:#203452;color:#f3f8ff;border:1px solid #45617e;border-radius:9px;padding:9px 12px;cursor:pointer}button:hover{background:#2d496e}button:disabled{opacity:.42;cursor:not-allowed}button.primary{background:#175c9c;border-color:#3997ee;font-weight:700}button.danger{color:#ffb9b6;border-color:#765352}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid #89caff;outline-offset:2px}
@@ -48,7 +48,7 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
 #holeToggle.is-hole{background:#ffe2e1;color:#9c2525;border-color:#f19a94}
 #shapeList{display:flex;flex-direction:column;gap:6px;margin-top:8px}
 .shapeItem{font-size:12px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:7px;background:#fff;cursor:pointer;display:flex;justify-content:space-between}
-.shapeItem.active{border-color:#62a4e5;background:#eaf5ff}.shapeItem.hole{border-style:dashed;border-color:#e99b8d;color:#a44737}
+.shapeItem.active{border:2px solid #297fda;background:#e4f2ff;font-weight:700}.shapeItem.hole{border-style:dashed;border-color:#e99b8d;color:#a44737}
 #sliceTips{background:#fff;border-left-color:#dae3ed}#sliceBar{background:#f8fbff}#kiri{background:#f5f8fb}
 .notice{color:#77501e;background:#fff7e7;border-left-color:#dea755}
 #kiriStatus{color:#566c81}#kiriStatus[data-state='ok']{color:#157246;font-weight:700}#kiriStatus[data-state='error']{color:#a32727}
@@ -79,6 +79,13 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
 #canvasWrap.placing{cursor:crosshair}
 #canvasWrap.placing #canvas3d{touch-action:none}
 #props{overscroll-behavior:contain}
+/* v0.4.5 selection overlay: does not swallow touch/pointer gestures */
+#marquee{position:absolute;z-index:5;pointer-events:none;border:2px dashed #0c71d7;background:#2388e837;border-radius:3px;box-shadow:0 0 0 1px #fff8 inset}
+#canvasWrap.range-active #canvas3d{cursor:crosshair;touch-action:none}
+#rangeMode.selected{background:#e3f2ff!important;border-color:#3d9de4!important;color:#165ca8!important;font-weight:800}
+#combineTop:disabled,#applyBoolean:disabled{opacity:.42}
+#booleanTools{margin-top:10px}
+#selectionInfo{padding:7px 0;line-height:1.5}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","three-bvh-csg":"https://esm.sh/three-bvh-csg@0.0.18?external=three"}}
@@ -88,7 +95,7 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
 <header>
  <strong>◇ まなび3D Studio</strong><small>CAD × Kiri:Moto</small>
  <nav class="tabs" aria-label="機能切替"><button id="tabCad" class="active" aria-current="page">① CAD</button><button id="tabSlice">② スライス</button></nav>
- <span class="grow"></span><span class="tag">ドラッグ配置 v0.4.4</span>
+ <span class="grow"></span><span class="tag">範囲選択・穴あけ v0.4.5</span>
 </header>
 <div id="root">
 <section id="cadPage" class="page active" aria-label="CAD編集">
@@ -96,16 +103,16 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
   <div id="modeTools" role="group" aria-label="直接操作">
    <button id="modeMove" class="selected" title="矢印をドラッグして移動 (M)">↔ 移動</button>
    <button id="modeScale" title="色付きのつまみをドラッグして寸法変更 (S)">⤢ 拡大縮小</button>
-   <button id="modeRotate" title="回転ハンドル (R)">⟳ 回転</button><button id="focusSelected" title="選択した図形を見やすい大きさに表示">◎ 図形に寄る</button>
+   <button id="modeRotate" title="回転ハンドル (R)">⟳ 回転</button><button id="rangeMode" type="button" aria-pressed="false" title="作業面を囲んで複数図形を選択。タップで選択の追加・解除">▧ 範囲選択</button><button id="focusSelected" title="選択した図形を見やすい大きさに表示">◎ 図形に寄る</button>
   </div>
   <button id="addBox" class="primary">＋ 立方体</button><button id="addCylinder">＋ 円柱</button><button id="addSphere">＋ 球</button>
-  <span class="sep"></span><button id="openStl" title="STLをCADに読み込み">STL読込</button><input id="stlFile" type="file" accept=".stl,model/stl,application/sla">
+  <span class="sep"></span><button id="combineTop" type="button" class="primary" disabled title="選択した実体と穴を処理">🔗 結合・穴あけ</button><button id="clearSelection" type="button" title="選択した図形を解除">選択解除</button><span class="sep"></span><button id="openStl" title="STLをCADに読み込み">STL読込</button><input id="stlFile" type="file" accept=".stl,model/stl,application/sla">
   <button id="saveStl">STL保存</button><button id="saveProject" class="cadOther" title="再編集可能な独自形式で保存">編集データ保存</button>
   <button id="loadProject" class="cadOther">編集データ読込</button><input id="projectFile" type="file" accept=".json,.m3d.json,application/json">
   <span class="grow"></span><button id="propsToggle">寸法</button><button id="toSlice" class="primary">スライスへ →</button>
  </div>
  <div id="cadBody">
-  <div id="canvasWrap"><canvas id="canvas3d" aria-label="3D CAD 作業領域"></canvas><div id="resizeOverlay" aria-label="ドラッグ式の寸法ハンドル"></div><div id="gripHint" hidden>● 赤＝幅　● 緑＝奥行　● 青＝高さ　● 紫＝全体　／　数字をクリックして直接入力</div><div id="emptyHelp">右の図形をドラッグして作業面に配置しよう</div><div id="axisHelp">図形ツールからドラッグ：配置 ／ 余白ドラッグ：視点回転 ／ 図形をクリック：選択<br>色付きのつまみをドラッグ：サイズ変更 ／ 数字をクリック：直接入力（mm）</div></div>
+  <div id="canvasWrap"><canvas id="canvas3d" aria-label="3D CAD 作業領域"></canvas><div id="resizeOverlay" aria-label="ドラッグ式の寸法ハンドル"></div><div id="marquee" hidden aria-hidden="true"></div><div id="gripHint" hidden>● 赤＝幅　● 緑＝奥行　● 青＝高さ　● 紫＝全体　／　数字をクリックして直接入力</div><div id="emptyHelp">右の図形をドラッグして作業面に配置しよう</div><div id="axisHelp">図形ツールからドラッグ：配置 ／ ▧ 範囲選択：囲んで複数選択（iPad対応）<br>複数選択して「🔗 結合・穴あけ」 ／ 赤い穴図形の重なり部分を除去</div></div>
   <aside id="props" aria-label="図形の追加と編集">
    <div id="shapePanel">
     <h2>基本図形</h2>
@@ -127,21 +134,18 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
     </div>
    </div>
    <div id="editPanel">
-   <h2>図形の編集</h2><div id="selectionInfo">図形を選択してください。</div>
+   <h2>図形の編集</h2><div id="selectionInfo" role="status">図形を選択してください。</div>
+   <div id="booleanTools"><button id="holeToggle" type="button" title="選択した図形を切り抜き用の穴にする">◌ 穴にする</button><button id="applyBoolean" type="button" disabled title="選択した実体を結合し、選択した穴を差し引く">🔗 選択図形を結合</button></div>
    <div id="propertyFields" hidden>
     <h3>大きさ (mm)</h3><div class="labels"><span>幅 X</span><span>奥行 Y</span><span>高さ Z</span></div><div class="triple"><input id="dimX" type="number" min="0.1" max="500" step="0.5" aria-label="幅 X"><input id="dimY" type="number" min="0.1" max="500" step="0.5" aria-label="奥行 Y"><input id="dimZ" type="number" min="0.1" max="500" step="0.5" aria-label="高さ Z"></div>
     <h3>配置 (mm)</h3><div class="labels"><span>X</span><span>Y</span><span>Z（底面）</span></div><div class="triple"><input id="posX" type="number" step="1" aria-label="位置 X"><input id="posY" type="number" step="1" aria-label="位置 Y"><input id="posZ" type="number" step="1" aria-label="位置 Z"></div>
     <div class="control"><label for="angle">Z回転 (°)</label><input id="angle" type="number" step="5" value="0"></div>
-    <div id="booleanTools">
-     <button id="holeToggle" title="選択済みの図形を切り抜き用の穴にする">◌ 穴にする</button>
-     <button id="applyBoolean" title="すべての実体を結合し、穴の図形を差し引く">結合・切り抜き</button>
-    </div>
     <div class="sidebarActions" style="margin-top:10px"><button id="duplicate">複製</button><button id="remove" class="danger">削除</button></div>
    </div>
    <h3>図形一覧</h3><div id="shapeList"></div>
    <h3>モデルについて</h3>
    <p>図形はmm単位。STLは端末に保存します。再編集を続けるなら「編集データ保存」も使ってね。STLは図形の種類や編集履歴を保持しません。</p>
-   <p>穴を作るには、図形を重ねて「穴にする」→「結合・切り抜き」を押します。結合・切り抜き後は完成形状になります（編集前にプロジェクト保存がおすすめ）。</p>
+   <p>穴を作るには①実体と穴を重ねる → ②上部の「▧ 範囲選択」で2つを囲む（または一覧で複数選択）→ ③「🔗 結合・穴あけ」を押します。結合後は完成形状になるため、編集前の保存がおすすめです。</p>
    <p class="hint">作品は同じブラウザにも自動保存（小さな作品が対象）。端末データ削除に備えて編集データを書き出してください。</p>
    </div>
   </aside>
@@ -203,11 +207,11 @@ transform.addEventListener('mouseUp',()=>{const it=selected();if(!it)return; con
  const factor=mesh.scale;it.w=clampNumber(it.w*factor.x,.1,500,it.w);it.d=clampNumber(it.d*factor.y,.1,500,it.d);it.h=clampNumber(it.h*factor.z,.1,500,it.h);
  it.x=mesh.position.x;it.y=mesh.position.y;it.z=mesh.position.z;
  it.angle=THREE.MathUtils.radToDeg(mesh.rotation.z);mesh.scale.set(1,1,1);applyRec(it);setSelected(it.id);autosave();notify('モデルを直接操作しました');});
-function setMode(mode){activeMode=mode;transform.setMode(mode);transform.showX=mode!=='rotate';transform.showY=mode!=='rotate';transform.showZ=true;setSelected(currentId);
+function setMode(mode){if(rangeSelectActive)setRangeMode(false);activeMode=mode;transform.setMode(mode);transform.showX=mode!=='rotate';transform.showY=mode!=='rotate';transform.showZ=true;setSelection([...selectedIds]);
  for(const [id,val] of [['modeMove','translate'],['modeScale','scale'],['modeRotate','rotate']])$(id).classList.toggle('selected',val===mode);
  notify(mode==='translate'?'矢印で移動／色付きつまみで寸法変更':mode==='scale'?'赤・緑・青・紫のつまみをドラッグして大きさを変更':'回転ハンドルをドラッグ');}
 $('modeMove').onclick=()=>setMode('translate');$('modeScale').onclick=()=>setMode('scale');$('modeRotate').onclick=()=>setMode('rotate');
-const items=[];let currentId=null;let uid=0;const undo=[];
+const items=[];let currentId=null;let uid=0;const undo=[];const selectedIds=new Set();let rangeSelectActive=false;
 const selectInputs=['dimX','dimY','dimZ','posX','posY','posZ','angle'];
 const newId=()=>`shape_${Date.now().toString(36)}_${++uid}`;
 function defaultRec(type){const names={box:'ボックス',cylinder:'円柱',sphere:'球',cone:'円すい',roof:'屋根',hex:'六角柱',tube:'パイプ',torus:'リング'};return {id:newId(),type,name:names[type]||'図形',w:25,d:25,h:25,x:0,y:0,z:0,angle:0,hole:false};}
@@ -225,12 +229,35 @@ function geometryOf(rec){let geom;
  geom.computeBoundingBox();geom.computeVertexNormals();return geom;}
 function addRec(rec,select=true){if(items.length>=150)throw Error('試作版では150個まで');const mat=new THREE.MeshStandardMaterial({color:0x4eaff4,roughness:.55,metalness:.02,side:THREE.DoubleSide,transparent:!!rec.hole,opacity:rec.hole?.32:1,depthWrite:!rec.hole});
  const mesh=new THREE.Mesh(geometryOf(rec),mat);mesh.userData.id=rec.id;mesh.position.set(rec.x,rec.y,rec.z);mesh.rotation.z=THREE.MathUtils.degToRad(rec.angle);scene.add(mesh);items.push({...rec,mesh});if(select)setSelected(rec.id);$('emptyHelp').hidden=true;renderShapeList();return mesh;}
-function removeAll(){for(const it of items){scene.remove(it.mesh);it.mesh.geometry.dispose();it.mesh.material.dispose();}items.length=0;setSelected(null);$('emptyHelp').hidden=false;}
-function setSelected(id){if(editingSize)finishInlineDimension(true);currentId=id;let selected=items.find(i=>i.id===id);for(const it of items){it.mesh.material.color.setHex(it.hole?0xe86f66:(it.id===id?0xf6a543:0x4eaff4));}const avail=!!selected;$('propertyFields').hidden=!avail;$('selectionInfo').textContent=selected?`${selected.name}（${selected.hole?'穴（切り抜き用）':'実体'}）`:'図形を選択してください。';
- if(selected){const values={dimX:selected.w,dimY:selected.d,dimZ:selected.h,posX:selected.x,posY:selected.y,posZ:selected.z,angle:selected.angle};for(const id of selectInputs)$(id).value=Number(values[id].toFixed(3));}
- $('holeToggle').textContent=selected?.hole?'● 実体に戻す':'◌ 穴にする';$('holeToggle').classList.toggle('is-hole',!!selected?.hole);
- if(selected&&activeMode!=='scale')transform.attach(selected.mesh);else transform.detach();renderShapeList();updateResizeHandles();}
-function renderShapeList(){const area=$('shapeList');if(!area)return;area.replaceChildren();for(const it of items){const b=document.createElement('button');b.type='button';b.className='shapeItem'+(it.id===currentId?' active':'')+(it.hole?' hole':'');b.textContent=`${it.hole?'◌ ':'■ '}${it.name}`;b.onclick=()=>setSelected(it.id);area.append(b);}}
+function removeAll(){for(const it of items){scene.remove(it.mesh);it.mesh.geometry.dispose();it.mesh.material.dispose();}items.length=0;setSelection([]);$('emptyHelp').hidden=false;}
+function chosenItems(){return items.filter(it=>selectedIds.has(it.id));}
+function setSelection(ids){
+ if(editingSize)finishInlineDimension(true);
+ selectedIds.clear();for(const id of ids||[]){if(items.some(it=>it.id===id))selectedIds.add(id);}
+ const picked=chosenItems();currentId=picked.length===1?picked[0].id:null;
+ for(const it of items){
+  const isPicked=selectedIds.has(it.id);
+  it.mesh.material.color.setHex(it.hole?(isPicked?0xf4a18e:0xe86f66):(isPicked?0xf6a543:0x4eaff4));
+  if(it.mesh.material.emissive)it.mesh.material.emissive.setHex(isPicked?0x2b1700:0x000000);
+ }
+ const single=picked.length===1?picked[0]:null;
+ $('propertyFields').hidden=!single;
+ const solidCount=picked.filter(i=>!i.hole).length,holeCount=picked.length-solidCount;
+ $('selectionInfo').textContent=!picked.length?'図形を選択してください。':single?`${single.name}（${single.hole?'穴（切り抜き用）':'実体'}）`:`${picked.length}個を選択中（実体 ${solidCount}・穴 ${holeCount}）`;
+ if(single){const values={dimX:single.w,dimY:single.d,dimZ:single.h,posX:single.x,posY:single.y,posZ:single.z,angle:single.angle};for(const id of selectInputs)$(id).value=Number(values[id].toFixed(3));}
+ $('holeToggle').disabled=!single;
+ $('holeToggle').textContent=single?.hole?'● 実体に戻す':'◌ 穴にする';
+ $('holeToggle').classList.toggle('is-hole',!!single?.hole);
+ const canCombine=picked.length>=2&&solidCount>0;
+ $('applyBoolean').disabled=!canCombine;$('combineTop').disabled=!canCombine;
+ $('applyBoolean').textContent=holeCount?'🔗 結合・穴あけ':'🔗 実体を結合';
+ $('combineTop').textContent=holeCount?'🔗 結合・穴あけ':'🔗 結合';
+ if(single&&!rangeSelectActive&&activeMode!=='scale')transform.attach(single.mesh);else transform.detach();
+ renderShapeList();updateResizeHandles();
+}
+function setSelected(id){setSelection(id?[id]:[]);}
+function toggleSelected(id){const ids=new Set(selectedIds);if(ids.has(id))ids.delete(id);else ids.add(id);setSelection([...ids]);}
+function renderShapeList(){const area=$('shapeList');if(!area)return;area.replaceChildren();for(const it of items){const b=document.createElement('button');b.type='button';b.className='shapeItem'+(selectedIds.has(it.id)?' active':'')+(it.hole?' hole':'');b.textContent=`${it.hole?'◌ ':'■ '}${it.name}${selectedIds.has(it.id)?' ✓':''}`;b.setAttribute('aria-pressed',String(selectedIds.has(it.id)));b.onclick=e=>{if(e.ctrlKey||e.metaKey||e.shiftKey||rangeSelectActive)toggleSelected(it.id);else setSelected(it.id);};area.append(b);}}
 function selected(){return items.find(i=>i.id===currentId);}
 // Visible shape-size handles. They are HTML overlaid on the 3D canvas so
 // students can drag them directly instead of hunting for tiny 3D gizmo axes.
@@ -346,7 +373,7 @@ function screenGrip(it,axis){
 }
 function updateResizeHandles(){
  const it=selected();
- const visible=!!it&&!armedShape&&!placing&&activeMode!=='rotate'&&$('cadPage').classList.contains('active');
+ const visible=!!it&&!rangeSelectActive&&!armedShape&&!placing&&activeMode!=='rotate'&&$('cadPage').classList.contains('active');
  gripHint.hidden=!visible;
  for(const [axis,grip] of Object.entries(sizeGrips)){
   const g=visible?screenGrip(it,axis):null;
@@ -412,6 +439,7 @@ function cancelPlacement(){
  discardGhost();placing=null;armedShape=null;controls.enabled=true;refreshPlacementUI();
 }
 function armPlacement(type){
+ if(rangeSelectActive)setRangeMode(false);
  armedShape=type;transform.detach();refreshPlacementUI();
  notify(`${defaultRecLabel(type)}を配置：作業面をタップ、またはドラッグで幅と奥行きを指定（${newShapeRole==='hole'?'穴':'実体'}）`);
 }
@@ -593,13 +621,93 @@ $('addCylinder').onclick=()=>armPlacement('cylinder');
 $('addSphere').onclick=()=>armPlacement('sphere');
 refreshPlacementUI();
 
-renderer.domElement.addEventListener('pointerdown',e=>{if(armedShape||placing)return;pointerDown={x:e.clientX,y:e.clientY};});
-renderer.domElement.addEventListener('pointerup',e=>{if(armedShape||placing)return;if(!pointerDown)return;const dx=e.clientX-pointerDown.x,dy=e.clientY-pointerDown.y;pointerDown=null;if(Math.hypot(dx,dy)>5||transform.dragging)return;const r=renderer.domElement.getBoundingClientRect();cursor.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(cursor,camera);const hits=ray.intersectObjects(items.map(i=>i.mesh),false);setSelected(hits.length?hits[0].object.userData.id:null);});
+
+// Multi-selection uses screen-space bounding boxes so both solid meshes and
+// translucent hole meshes can be selected even when they overlap.
+const marquee=$('marquee');let selectGesture=null;
+function setRangeMode(on){
+ rangeSelectActive=!!on;
+ if(on&&typeof cancelPlacement==='function')cancelPlacement();
+ $('rangeMode').classList.toggle('selected',rangeSelectActive);
+ $('rangeMode').setAttribute('aria-pressed',String(rangeSelectActive));
+ $('canvasWrap').classList.toggle('range-active',rangeSelectActive);
+ controls.enabled=true;
+ setSelection([...selectedIds]);
+ if(on)notify('範囲選択モード：作業面をドラッグして囲む／図形をタップして追加・解除。選択後は「結合・穴あけ」。');
+}
+$('rangeMode').onclick=()=>setRangeMode(!rangeSelectActive);
+$('clearSelection').onclick=()=>{setSelection([]);notify('選択を解除しました');};
+function screenBounds(it){
+ const box=new THREE.Box3().setFromObject(it.mesh);
+ if(box.isEmpty())return null;
+ const r=renderer.domElement.getBoundingClientRect();
+ const corners=[];
+ for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z]){
+  const p=new THREE.Vector3(x,y,z).project(camera);
+  if(p.z>=1)return null;
+  corners.push({x:(p.x+1)*r.width/2+r.left,y:(1-p.y)*r.height/2+r.top});
+ }
+ return {left:Math.min(...corners.map(p=>p.x)),right:Math.max(...corners.map(p=>p.x)),top:Math.min(...corners.map(p=>p.y)),bottom:Math.max(...corners.map(p=>p.y))};
+}
+function drawSelectionRect(g){
+ const r=$('canvasWrap').getBoundingClientRect();
+ const x1=Math.max(r.left,Math.min(r.right,Math.min(g.x0,g.x1)));
+ const x2=Math.max(r.left,Math.min(r.right,Math.max(g.x0,g.x1)));
+ const y1=Math.max(r.top,Math.min(r.bottom,Math.min(g.y0,g.y1)));
+ const y2=Math.max(r.top,Math.min(r.bottom,Math.max(g.y0,g.y1)));
+ marquee.style.left=`${x1-r.left}px`;marquee.style.top=`${y1-r.top}px`;
+ marquee.style.width=`${x2-x1}px`;marquee.style.height=`${y2-y1}px`;
+ marquee.hidden=false;
+}
+renderer.domElement.addEventListener('pointerdown',e=>{
+ if(!rangeSelectActive||placing||e.button!==0)return;
+ e.preventDefault();e.stopImmediatePropagation();
+ selectGesture={pointerId:e.pointerId,x0:e.clientX,y0:e.clientY,x1:e.clientX,y1:e.clientY,additive:e.shiftKey||e.ctrlKey||e.metaKey};
+ controls.enabled=false;transform.detach();
+ try{renderer.domElement.setPointerCapture(e.pointerId);}catch{}
+},{capture:true});
+window.addEventListener('pointermove',e=>{
+ if(!selectGesture||selectGesture.pointerId!==e.pointerId)return;
+ e.preventDefault();selectGesture.x1=e.clientX;selectGesture.y1=e.clientY;
+ if(Math.hypot(selectGesture.x1-selectGesture.x0,selectGesture.y1-selectGesture.y0)>=6)drawSelectionRect(selectGesture);
+},{passive:false});
+function endRangeSelection(e){
+ const g=selectGesture;if(!g||g.pointerId!==e.pointerId)return;
+ selectGesture=null;marquee.hidden=true;controls.enabled=true;
+ if(e.type==='pointercancel'){setSelection([...selectedIds]);return;}
+ const x1=Math.min(g.x0,e.clientX),x2=Math.max(g.x0,e.clientX);
+ const y1=Math.min(g.y0,e.clientY),y2=Math.max(g.y0,e.clientY);
+ if(Math.hypot(x2-x1,y2-y1)<7){
+  const r=renderer.domElement.getBoundingClientRect();
+  cursor.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);
+  ray.setFromCamera(cursor,camera);
+  const hits=ray.intersectObjects(items.map(it=>it.mesh),false);
+  if(hits.length)toggleSelected(hits[0].object.userData.id);
+  else if(!g.additive)setSelection([]);
+ }else{
+  // Left-to-right = full inclusion. Right-to-left = intersects.
+  const full=g.x0<=e.clientX;
+  const ids=items.filter(it=>{
+   const b=screenBounds(it);if(!b)return false;
+   return full?(b.left>=x1&&b.right<=x2&&b.top>=y1&&b.bottom<=y2)
+     :(b.left<=x2&&b.right>=x1&&b.top<=y2&&b.bottom>=y1);
+  }).map(it=>it.id);
+  const chosen=g.additive?new Set([...selectedIds,...ids]):new Set(ids);
+  setSelection([...chosen]);
+ }
+ const n=selectedIds.size;
+ notify(n?`${n}個の図形を選択中。実体と穴が含まれていれば「🔗 結合・穴あけ」を押してね。`:'図形が選択されていません。囲む向きを逆にするか、図形をタップして選択してね。');
+}
+window.addEventListener('pointerup',endRangeSelection);
+window.addEventListener('pointercancel',endRangeSelection);
+
+renderer.domElement.addEventListener('pointerdown',e=>{if(rangeSelectActive||armedShape||placing)return;pointerDown={x:e.clientX,y:e.clientY};});
+renderer.domElement.addEventListener('pointerup',e=>{if(rangeSelectActive||armedShape||placing)return;if(!pointerDown)return;const dx=e.clientX-pointerDown.x,dy=e.clientY-pointerDown.y;pointerDown=null;if(Math.hypot(dx,dy)>5||transform.dragging)return;const r=renderer.domElement.getBoundingClientRect();cursor.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(cursor,camera);const hits=ray.intersectObjects(items.map(i=>i.mesh),false);if(e.shiftKey||e.ctrlKey||e.metaKey){if(hits.length)toggleSelected(hits[0].object.userData.id);}else setSelected(hits.length?hits[0].object.userData.id:null);});
 function resize(){const rect=$('canvasWrap').getBoundingClientRect();if(rect.width<1||rect.height<1)return;renderer.setSize(rect.width,rect.height,false);camera.aspect=rect.width/rect.height;camera.updateProjectionMatrix();}
 new ResizeObserver(resize).observe($('canvasWrap'));function render(){requestAnimationFrame(render);controls.update();renderer.render(scene,camera);updateResizeHandles();}resize();render();
 function download(data,name,mime){const blob=data instanceof Blob?data:new Blob([data],{type:mime});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),20000);}
-async function composeGeometry(){
- const solids=items.filter(i=>!i.hole),holes=items.filter(i=>i.hole);
+async function composeGeometry(source=items){
+ const solids=source.filter(i=>!i.hole),holes=source.filter(i=>i.hole);
  if(!solids.length)throw Error('実体の図形がありません。穴以外の図形を作ってください');
  if(solids.length===1&&!holes.length){const copy=solids[0].mesh.clone();copy.material=solids[0].mesh.material;copy.updateMatrixWorld(true);return copy;}
  const {Brush,Evaluator,ADDITION,SUBTRACTION}=await import('three-bvh-csg');
@@ -613,9 +721,9 @@ async function composeGeometry(){
  result.geometry.clearGroups();result.geometry.computeVertexNormals();
  return result;
 }
-async function toStlBuffer(){const model=await composeGeometry();const group=new THREE.Group();group.add(model);group.updateMatrixWorld(true);
+async function toStlBuffer(source=items){const model=await composeGeometry(source);const group=new THREE.Group();group.add(model);group.updateMatrixWorld(true);
  const raw=new STLExporter().parse(group,{binary:true});
- if(model.geometry&&model!==items[0]?.mesh&&items.length>1)model.geometry.dispose();
+ if(model.geometry&&model!==source[0]?.mesh&&source.length>1)model.geometry.dispose();
  // STLExporter binary output is a DataView in the supported Three.js release.
  if(raw instanceof DataView)return raw.buffer.slice(raw.byteOffset,raw.byteOffset+raw.byteLength);
  if(raw instanceof ArrayBuffer)return raw;
@@ -623,15 +731,42 @@ async function toStlBuffer(){const model=await composeGeometry();const group=new
  throw Error('STLのバイナリ生成形式が未対応です');
 }
 $('holeToggle').onclick=()=>{const it=selected();if(!it)return;undoSnapshot();it.hole=!it.hole;applyRec(it);setSelected(it.id);autosave();notify(it.hole?'穴として設定。実体に重ねて「結合・切り抜き」を押してね':'実体に戻しました');};
-$('applyBoolean').onclick=async()=>{try{if(items.length<2){notify('2つ以上の図形を重ねてください');return;}const btn=$('applyBoolean');btn.disabled=true;notify('結合・切り抜きを計算中…');
- const raw=await toStlBuffer();const geom=new STLLoader().parse(raw);const pos=geom.getAttribute('position');if(!pos?.count)throw Error('演算後に面がありません');
- geom.computeBoundingBox();const bb=geom.boundingBox;
- const dims=bb.getSize(new THREE.Vector3());const vertices=Array.from(pos.array);
- const c={id:newId(),name:'結合した立体',type:'imported',w:dims.x,d:dims.y,h:dims.z,baseW:dims.x,baseD:dims.y,baseH:dims.z,x:(bb.min.x+bb.max.x)/2,y:(bb.min.y+bb.max.y)/2,z:bb.min.z,angle:0,hole:false,vertices};
- // The loader gives world positions; store centered-to-bottom local vertices.
- for(let i=0;i<vertices.length;i+=3){vertices[i]-=c.x;vertices[i+1]-=c.y;vertices[i+2]-=c.z;}
- undoSnapshot();removeAll();addRec(c);autosave();notify('結合・切り抜きを反映しました。再編集には保存済みの編集データを使用してください。');
- }catch(e){notify(`結合・切り抜き失敗：${e.message}`);}finally{$('applyBoolean').disabled=false;}};
+async function combineSelection(){
+ const picked=chosenItems();
+ const solids=picked.filter(i=>!i.hole),holes=picked.filter(i=>i.hole);
+ if(picked.length<2||!solids.length){notify('実体を1つ以上含む2つ以上の図形を範囲選択してね');return;}
+ if(holes.length){
+  const solidBoxes=solids.map(it=>new THREE.Box3().setFromObject(it.mesh));
+  const overlapping=holes.filter(it=>{const b=new THREE.Box3().setFromObject(it.mesh);return solidBoxes.some(sb=>sb.intersectsBox(b));});
+  if(!overlapping.length){notify('選択した穴が実体と重なっていません。位置・高さ・寸法を確認してね');return;}
+ }
+ const buttons=[$('applyBoolean'),$('combineTop')];buttons.forEach(b=>b.disabled=true);
+ notify('選択された図形だけを結合・穴あけ計算中…');
+ const snapshot=JSON.stringify(picked.map(serializeRec));const pickedIds=picked.map(i=>i.id);
+ try{
+  const raw=await toStlBuffer(picked);
+  // Reject results made obsolete by another edit while CSG was calculating.
+  if(JSON.stringify(pickedIds.map(id=>items.find(it=>it.id===id)).filter(Boolean).map(serializeRec))!==snapshot)throw Error('計算中に図形が変更されたためキャンセルしました');
+  const geom=new STLLoader().parse(raw);const pos=geom.getAttribute('position');
+  if(!pos?.count||pos.count<3)throw Error('演算後に面がありません。穴が実体を全部削っていないか確認してね');
+  geom.computeBoundingBox();const bb=geom.boundingBox;const dims=bb.getSize(new THREE.Vector3());
+  if([dims.x,dims.y,dims.z].some(v=>v<.001||!Number.isFinite(v)))throw Error('結果に厚みがありません');
+  const vertices=Array.from(pos.array);
+  const name=holes.length?'穴あけした立体':'結合した立体';
+  const rec={id:newId(),name,type:'imported',w:dims.x,d:dims.y,h:dims.z,baseW:dims.x,baseD:dims.y,baseH:dims.z,x:(bb.min.x+bb.max.x)/2,y:(bb.min.y+bb.max.y)/2,z:bb.min.z,angle:0,hole:false,vertices};
+  for(let i=0;i<vertices.length;i+=3){vertices[i]-=rec.x;vertices[i+1]-=rec.y;vertices[i+2]-=rec.z;}
+  undoSnapshot();
+  // Only consume the two-or-more chosen shapes. Unrelated shapes stay intact.
+  const ids=new Set(pickedIds);
+  for(let i=items.length-1;i>=0;i--){const it=items[i];if(!ids.has(it.id))continue;scene.remove(it.mesh);it.mesh.geometry.dispose();it.mesh.material.dispose();items.splice(i,1);}
+  addRec(rec);setRangeMode(false);autosave();
+  notify(`${picked.length}個を${holes.length?'穴あけ・結合':'結合'}しました。ほかの図形は残っています（元に戻す：Ctrl/⌘+Z）。`);
+ }catch(e){notify(`結合・穴あけ失敗：${e.message||e}`);}finally{
+  setSelection([...selectedIds]);
+ }
+}
+$('applyBoolean').onclick=combineSelection;
+$('combineTop').onclick=combineSelection;
 $('saveStl').onclick=async()=>{try{const stl=await toStlBuffer();download(stl,'manabi3d-model.stl','model/stl');notify('結合・穴あけを反映したSTLを端末に保存しました');}catch(e){notify(`STL保存失敗：${e.message}`);}};
 $('saveProject').onclick=()=>{download(JSON.stringify(documentData(),null,2),'manabi3d-project.m3d.json','application/json');notify('再編集用プロジェクトを端末に保存しました');};
 function validateProject(raw){const doc=JSON.parse(raw);if(doc.schema!=='manabi3d-project'||doc.version!==1||!Array.isArray(doc.items)||doc.items.length>150)throw Error('このバージョンで読み込めない編集データです');
@@ -696,7 +831,7 @@ $('sendToKiri').onclick=transfer;$('toSlice').onclick=()=>{setTab('slice');trans
 // Restore small drafts. No account and no server. Save explicit project files for long-term work.
 try{const saved=localStorage.getItem('manabi3d-cad-draft-v1');if(saved){loadProjectString(saved);notify('このブラウザの前回の編集内容を復元しました');}else{notify('準備完了。図形を追加して始めよう。');}}catch(e){notify('ブラウザの保存データは使用できません。手動保存は可能です。');}
 window.__manabiCadReady=true;
-window.addEventListener('keydown',e=>{if(e.key==='Escape'&&(placing||armedShape)){cancelPlacement();notify('配置モードを解除しました');return;}if(!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)&&!e.ctrlKey&&!e.metaKey){if(e.key.toLowerCase()==='m')setMode('translate');if(e.key.toLowerCase()==='s')setMode('scale');if(e.key.toLowerCase()==='r')setMode('rotate');}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();$('saveProject').click();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&undo.length){e.preventDefault();try{loadProjectString(undo.pop());}catch{}}});
+window.addEventListener('keydown',e=>{if(e.key==='Escape'&&rangeSelectActive){setRangeMode(false);notify('範囲選択モードを終了しました');return;}if(e.key==='Escape'&&(placing||armedShape)){cancelPlacement();notify('配置モードを解除しました');return;}if(!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)&&!e.ctrlKey&&!e.metaKey){if(e.key.toLowerCase()==='m')setMode('translate');if(e.key.toLowerCase()==='s')setMode('scale');if(e.key.toLowerCase()==='r')setMode('rotate');}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();$('saveProject').click();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&undo.length){e.preventDefault();try{loadProjectString(undo.pop());}catch{}}});
 </script>
 <script>
 // A plain script can report a failed CDN module import even when the CAD module never starts.

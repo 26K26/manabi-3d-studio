@@ -50,6 +50,8 @@ try{
   return window.kiri?.api?.widgets?.all?.().length>=1;
  },null,{timeout:45000});
  console.log('LOADED '+JSON.stringify(await page.evaluate(()=>({modelCount:window.kiri.api.widgets.all().length,status:document.getElementById('manabiImportStatus')?.textContent}))));
+ const modelCount=await page.evaluate(()=>window.kiri.api.widgets.all().length);
+ if(modelCount!==1)throw Error('Unexpected extra model in slicer: '+modelCount+' (expected only CAD model)');
  // Check if Kiri's core slicing Worker can receive and answer any task.
  // If the core worker module fails to initialize in WebKit, the progress UI
  // would otherwise sit at 0% forever without an actionable diagnosis.

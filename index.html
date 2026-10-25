@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>まなび3D Studio — v0.4.7 寸法表示改善版</title>
+<title>まなび3D Studio — v0.4.8 単独表示追加版</title>
 <style>
 :root{font-family:system-ui,-apple-system,"Noto Sans JP",sans-serif;background:#0b1120;color:#eef3ff;--line:#2a3852;--muted:#a7b6ce;--panel:#101b30;--accent:#78baff}*{box-sizing:border-box}
 body{margin:0}button,select,input{font:inherit}button{background:#203452;color:#f3f8ff;border:1px solid #45617e;border-radius:9px;padding:9px 12px;cursor:pointer}button:hover{background:#2d496e}button:disabled{opacity:.42;cursor:not-allowed}button.primary{background:#175c9c;border-color:#3997ee;font-weight:700}button.danger{color:#ffb9b6;border-color:#765352}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid #89caff;outline-offset:2px}
@@ -89,6 +89,10 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
 #dimensionToggle{display:block;width:100%;margin:0 0 7px;background:#f6f9fe;color:#255684;border:1px solid #bdd7f1;font-weight:650;font-size:12px;padding:9px}
 #dimensionToggle[aria-pressed="true"]{background:#e4f1ff;border-color:#79b3ec}
 #dimensionToggle:disabled{opacity:.45}
+#soloToggle[aria-pressed="true"]{background:#e2f1ff;border-color:#549bdd;color:#125b96;font-weight:750}
+#soloToggle:disabled{opacity:.45}
+#shapeList .shapeItem.soloHidden{opacity:.55}
+
 
 #textEditPanel{border:1px solid #b6d9f8;border-radius:9px;background:#f2f8ff;padding:10px 8px;margin-top:12px}
 #textEditPanel h3{margin:1px 0 7px}
@@ -116,7 +120,7 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
 <header>
  <strong>◇ まなび3D Studio</strong><small>CAD × Kiri:Moto</small>
  <nav class="tabs" aria-label="機能切替"><button id="tabCad" class="active" aria-current="page">① CAD</button><button id="tabSlice">② スライス</button></nav>
- <span class="grow"></span><span class="tag">寸法表示改善 v0.4.7</span>
+ <span class="grow"></span><span class="tag">単独表示追加 v0.4.8</span>
 </header>
 <div id="root">
 <section id="cadPage" class="page active" aria-label="CAD編集">
@@ -127,7 +131,7 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
    <button id="modeRotate" title="回転ハンドル (R)">⟳ 回転</button><button id="rangeMode" type="button" aria-pressed="false" title="作業面を囲んで複数図形を選択。タップで選択の追加・解除">▧ 範囲選択</button><button id="focusSelected" title="選択した図形を見やすい大きさに表示">◎ 図形に寄る</button>
   </div>
   <button id="addBox" class="primary">＋ 立方体</button><button id="addCylinder">＋ 円柱</button><button id="addSphere">＋ 球</button>
-  <span class="sep"></span><button id="combineTop" type="button" class="primary" disabled title="選択した実体と穴を処理">🔗 結合・穴あけ</button><button id="clearSelection" type="button" title="選択した図形を解除">選択解除</button><span class="sep"></span><button id="openStl" title="STLをCADに読み込み">STL読込</button><input id="stlFile" type="file" accept=".stl,model/stl,application/sla">
+  <span class="sep"></span><button id="combineTop" type="button" class="primary" disabled title="選択した実体と穴を処理">🔗 結合・穴あけ</button><button id="soloToggle" type="button" disabled aria-pressed="false" title="選択した図形だけをCAD画面に一時表示。保存・スライスには影響しません">👁 単独表示</button><button id="clearSelection" type="button" title="選択した図形を解除">選択解除</button><span class="sep"></span><button id="openStl" title="STLをCADに読み込み">STL読込</button><input id="stlFile" type="file" accept=".stl,model/stl,application/sla">
   <button id="saveStl">STL保存</button><button id="saveProject" class="cadOther" title="再編集可能な独自形式で保存">編集データ保存</button>
   <button id="loadProject" class="cadOther">編集データ読込</button><input id="projectFile" type="file" accept=".json,.m3d.json,application/json">
   <span class="grow"></span><button id="propsToggle">寸法</button><button id="toSlice" class="primary">スライスへ →</button>
@@ -246,6 +250,8 @@ const items=[];let currentId=null;let uid=0;const undo=[];const selectedIds=new 
 // Dimension chips should not obscure a newly placed object or embedded text.
 // They appear only on explicit tap/selection and can be dismissed independently.
 let dimensionLabelsVisible=false;
+// Solo view affects CAD viewport only. The saved project and STL exports always use ALL items.
+let soloId=null;
 const selectInputs=['dimX','dimY','dimZ','posX','posY','posZ','angle'];
 const newId=()=>`shape_${Date.now().toString(36)}_${++uid}`;
 function defaultRec(type){const names={box:'ボックス',cylinder:'円柱',sphere:'球',cone:'円すい',roof:'屋根',hex:'六角柱',tube:'パイプ',torus:'リング',text:'文字'};return {id:newId(),type,name:names[type]||'図形',w:type==='text'?56:25,d:type==='text'?16:25,h:type==='text'?3:25,x:0,y:0,z:0,angle:0,hole:false,...(type==='text'?{text:'名前'}:{})};}
@@ -340,13 +346,34 @@ function geometryOf(rec){let geom;
  geom.computeBoundingBox();geom.computeVertexNormals();return geom;}
 function addRec(rec,select=true){if(items.length>=150)throw Error('試作版では150個まで');const mat=new THREE.MeshStandardMaterial({color:0x4eaff4,roughness:.55,metalness:.02,side:THREE.DoubleSide,transparent:!!rec.hole,opacity:rec.hole?.32:1,depthWrite:!rec.hole});
  const mesh=new THREE.Mesh(geometryOf(rec),mat);mesh.userData.id=rec.id;mesh.position.set(rec.x,rec.y,rec.z);mesh.rotation.z=THREE.MathUtils.degToRad(rec.angle);scene.add(mesh);items.push({...rec,mesh});if(select)setSelected(rec.id,false);$('emptyHelp').hidden=true;renderShapeList();return mesh;}
-function removeAll(){for(const it of items){scene.remove(it.mesh);it.mesh.geometry.dispose();it.mesh.material.dispose();}items.length=0;setSelection([]);$('emptyHelp').hidden=false;}
+function removeAll(){soloId=null;for(const it of items){scene.remove(it.mesh);it.mesh.geometry.dispose();it.mesh.material.dispose();}items.length=0;setSelection([]);$('emptyHelp').hidden=false;}
 function chosenItems(){return items.filter(it=>selectedIds.has(it.id));}
+function syncSoloView(){
+ // Remove solo mode when the selected model is gone or selection is no longer singular.
+ if(soloId!==null && (selectedIds.size!==1 || !selectedIds.has(soloId) || !items.some(it=>it.id===soloId)))soloId=null;
+ for(const it of items)it.mesh.visible=soloId===null||it.id===soloId;
+ const solo=soloId!==null;
+ $('soloToggle').disabled=selectedIds.size!==1;
+ $('soloToggle').setAttribute('aria-pressed',String(solo));
+ $('soloToggle').textContent=solo?'👁 すべて表示':'👁 単独表示';
+}
+$('soloToggle').onclick=()=>{
+ const it=selected();
+ if(!it)return;
+ soloId=soloId===it.id?null:it.id;
+ syncSoloView();
+ renderShapeList();
+ notify(soloId ? `「${it.name}」だけを一時表示中。ほかの図形は残っています。元に戻すには「すべて表示」を押してね。`:'すべての図形を再表示しました。');
+};
+
 function setSelection(ids){
  if(editingSize)finishInlineDimension(true);
  selectedIds.clear();for(const id of ids||[]){if(items.some(it=>it.id===id))selectedIds.add(id);}
  const picked=chosenItems();currentId=picked.length===1?picked[0].id:null;
  if(picked.length!==1)dimensionLabelsVisible=false;
+ // Changing the active shape in the sidebar switches solo view to it.
+ if(soloId!==null&&picked.length===1)soloId=currentId;
+ syncSoloView();
  for(const it of items){
   const isPicked=selectedIds.has(it.id);
   it.mesh.material.color.setHex(it.hole?(isPicked?0xf4a18e:0xe86f66):(isPicked?0xf6a543:0x4eaff4));
@@ -373,7 +400,7 @@ function setSelection(ids){
 }
 function setSelected(id,showDimensions=true){dimensionLabelsVisible=!!id&&!!showDimensions;setSelection(id?[id]:[]);}
 function toggleSelected(id){const ids=new Set(selectedIds);if(ids.has(id))ids.delete(id);else ids.add(id);dimensionLabelsVisible=ids.size===1;setSelection([...ids]);}
-function renderShapeList(){const area=$('shapeList');if(!area)return;area.replaceChildren();for(const it of items){const b=document.createElement('button');b.type='button';b.className='shapeItem'+(selectedIds.has(it.id)?' active':'')+(it.hole?' hole':'');b.textContent=`${it.hole?'◌ ':'■ '}${it.name}${selectedIds.has(it.id)?' ✓':''}`;b.setAttribute('aria-pressed',String(selectedIds.has(it.id)));b.onclick=e=>{if(e.ctrlKey||e.metaKey||e.shiftKey||rangeSelectActive)toggleSelected(it.id);else setSelected(it.id);};area.append(b);}}
+function renderShapeList(){const area=$('shapeList');if(!area)return;area.replaceChildren();for(const it of items){const b=document.createElement('button');b.type='button';b.className='shapeItem'+(selectedIds.has(it.id)?' active':'')+(it.hole?' hole':'')+(soloId!==null&&soloId!==it.id?' soloHidden':'');b.textContent=`${it.hole?'◌ ':'■ '}${it.name}${selectedIds.has(it.id)?' ✓':''}${soloId!==null&&soloId!==it.id?'（非表示中）':''}`;b.setAttribute('aria-pressed',String(selectedIds.has(it.id)));b.onclick=e=>{if(e.ctrlKey||e.metaKey||e.shiftKey||rangeSelectActive)toggleSelected(it.id);else setSelected(it.id);};area.append(b);}}
 function selected(){return items.find(i=>i.id===currentId);}
 $('dimensionToggle').onclick=()=>{if(!selected())return;dimensionLabelsVisible=!dimensionLabelsVisible;setSelection([...selectedIds]);notify(dimensionLabelsVisible?'寸法を表示中。もう一度タップするか「寸法を隠す」で非表示にできます。':'寸法を非表示にしました。図形をタップすると再表示できます。');};
 // Visible shape-size handles. They are HTML overlaid on the 3D canvas so
@@ -840,6 +867,8 @@ async function composeGeometry(source=items){
  return result;
 }
 async function toStlBuffer(source=items){const model=await composeGeometry(source);const group=new THREE.Group();group.add(model);group.updateMatrixWorld(true);
+ // A viewport-only solo state must never silently drop geometry from export.
+ model.visible=true;
  const raw=new STLExporter().parse(group,{binary:true});
  if(model.geometry&&model!==source[0]?.mesh&&source.length>1)model.geometry.dispose();
  // STLExporter binary output is a DataView in the supported Three.js release.

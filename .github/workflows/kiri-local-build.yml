@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - name: Checkout Manabi 3D Studio experiment
@@ -67,13 +67,20 @@ jobs:
 
       - name: Install Chromium test harness
         run: |
-          npm install --no-audit --no-fund --no-save playwright-core
+          npm install --no-audit --no-fund --no-save playwright
+          npx playwright install --with-deps webkit
           command -v google-chrome || command -v chromium || command -v chromium-browser
 
       - name: Verify CAD STL slicing reaches Kiri slice.end in Chromium
         run: |
           CHROME_BIN="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
           CHROME_BIN="$CHROME_BIN" node experiments/kiri-local/smoke.mjs test-site
+
+      - name: Verify direct slicing in Safari-like WebKit
+        env:
+          BROWSER: webkit
+        run: |
+          node experiments/kiri-local/smoke.mjs test-site
 
       - name: Upload test site (not a production deployment)
         uses: actions/upload-artifact@v4

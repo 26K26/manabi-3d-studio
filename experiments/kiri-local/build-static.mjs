@@ -1,0 +1,63 @@
+// Convert an upstream Kiri:Moto build to a self-hosted static subdirectory.
+// Usage: node build-static.mjs <upstream> <output-root>
+// The output-root is the site root: <output-root>/index.html and
+// <output-root>/kiri-local/kiri/index.html are served on the same origin.
+// No user STL files are uploaded to a server.
+import fs from 'node:fs';
+import path from 'node:path';
+const up=path.resolve(process.argv[2]||'upstream');
+const out=path.resolve(process.argv[3]||'test-site');
+const base='/manabi-3d-studio/kiri-local/';
+const copy=(source,target,required=true)=>{
+  const from=path.join(up,source),to=path.join(out,'kiri-local',target);
+  if(!fs.existsSync(from)){
+    if(required)throw Error('Required upstream build output missing: '+from);
+    console.warn('optional missing: '+from);return;
+  }
+  fs.mkdirSync(path.dirname(to),{recursive:true});
+  fs.cpSync(from,to,{recursive:true,force:true});
+};
+for(const [from,to,req] of [
+ ['web/kiri','kiri',true],['web/moto','moto',true],
+ ['web/font','font',true],['web/icon','icon',false],
+ ['web/img','img',false],['web/obj','obj',false],
+ ['web/boot','boot',false],
+ ['src/pack/kiri-main.js','lib/main/kiri.js',true],
+ ['src/pack/kiri-work.js','lib/kiri/run/worker.js',true],
+ ['src/pack/kiri-pool.js','lib/kiri/run/minion.js',true],
+ ['src/ext/tween.js','lib/ext/tween.js',true],
+ ['src/moto/license.js','lib/moto/license.js',true],
+ ['src/wasm','wasm',false],
+ ['src/wasm','lib/kiri/wasm',false],
+ ['src/void/solver/planegcs_dist','lib/main/planegcs_dist',false],
+ ['license.md','license.md',true]
+]) copy(from,to,req);
+// Resolve Kiri's built-in absolute paths against our GitHub Pages project prefix.
+// This script is still a proof-of-concept; CI does not prove runtime compatibility.
+const routePrefixes=['lib','kiri','moto','font','icon','img','obj','wasm','boot','mesh','void'];
+function rewriteRoutes(text){
+ for(const p of routePrefixes){
+  for(const slash of ['"', "'", '`', '(', '=']){
+   text=text.replaceAll(slash+'/'+p+'/',slash+base+p+'/');
+  }
+ }
+ return text;
+}
+function walk(dir){
+ for(const name of fs.readdirSync(dir)){
+  const file=path.join(dir,name),info=fs.statSync(file);
+  if(info.isDirectory())walk(file);
+  else if(/\.(?:js|mjs|css|html|json|svg)$/i.test(name)){
+   const original=fs.readFileSync(file,'utf8');
+   const adapted=rewriteRoutes(original);
+   if(adapted!==original)fs.writeFileSync(file,adapted);
+  }
+ }
+}
+walk(path.join(out,'kiri-local'));
+const html=fs.readFileSync(path.join(out,'kiri-local','kiri','index.html'),'utf8');
+if(!html.includes(base+'lib/main/kiri.js'))throw Error('Kiri main UI script was not rebased');
+for(const p of ['lib/main/kiri.js','lib/kiri/run/worker.js','lib/kiri/run/minion.js','kiri/index.html']){
+ if(!fs.existsSync(path.join(out,'kiri-local',p)))throw Error('Missing packaged asset: '+p);
+}
+console.log('Packaged self-hosted Kiri UI, main bundle, workers and assets at '+out);

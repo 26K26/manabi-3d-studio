@@ -129018,7 +129018,13 @@ var workspace = {
 };
 
 // src/moto/opfs.js
-var root2 = await navigator.storage?.getDirectory();
+var root2;
+try {
+  root2 = await navigator.storage?.getDirectory();
+} catch (error2) {
+  console.warn("Kiri OPFS unavailable; continuing with slicing", error2);
+  root2 = void 0;
+}
 function resolvePath(path2) {
   if (!path2) {
     return [];

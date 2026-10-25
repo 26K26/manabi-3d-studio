@@ -50,7 +50,21 @@ try{
   return window.kiri?.api?.widgets?.all?.().length>=1;
  },null,{timeout:45000});
  console.log('LOADED '+JSON.stringify(await page.evaluate(()=>({modelCount:window.kiri.api.widgets.all().length,status:document.getElementById('manabiImportStatus')?.textContent}))));
- const result=await page.evaluate(()=>new Promise((resolve,reject)=>{
+ // Check if Kiri's core slicing Worker can receive and answer any task.
+ // If the core worker module fails to initialize in WebKit, the progress UI
+ // would otherwise sit at 0% forever without an actionable diagnosis.
+ const probe=await page.evaluate(async()=>{
+  const api=window.kiri?.api;
+  if(!api?.client?.sendp)return {ok:false,why:'api.client.sendp missing'};
+  try{
+   return await Promise.race([
+    api.client.sendp('clear',{}).then(v=>({ok:true,result:v})).catch(e=>({ok:false,error:String(e)})),
+    new Promise(ok=>setTimeout(()=>ok({ok:false,reason:'worker clear command timed out'}),5000))
+   ]);
+  }catch(e){return {ok:false,error:String(e)}}
+ });
+ console.log('CORE WORKER PROBE '+JSON.stringify(probe));
+  const result=await page.evaluate(()=>new Promise((resolve,reject)=>{
   const api=window.kiri.api;
   const timer=setTimeout(()=>reject(Error('Timed out waiting for slice.end')),50000);
   api.event.on('slice.end',msg=>{clearTimeout(timer);resolve({event:'slice.end',mode:api.mode.get(),models:api.widgets.all().length});});

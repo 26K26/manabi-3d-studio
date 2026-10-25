@@ -39,4 +39,16 @@ code=code.slice(0,start)+`            case 'stl':
                 break;
 `+code.slice(end);
 fs.writeFileSync(name,code);
-console.log('Patched same-origin reply + binary STL handling in Kiri frame API.');
+// Kiri's default startup eagerly spawns four minion workers. Its large
+// worker bundles add memory pressure inside WebKit's embedded browsing
+// context (iPad/iPhone/Safari). Fall back to single-worker slicing there.
+const syncName=path.join(upstream,'src/kiri/app/init/sync.js');
+let sync=fs.readFileSync(syncName,'utf8');
+const before='    preferences.setThreaded(true);';
+const n=sync.split(before).length-1;
+if(n!==1)throw Error('Kiri thread configuration moved: '+n);
+sync=sync.replace(before,`    // Embedded WebKit: avoid eager 4-minion pool; core slice worker remains active.
+    const safariLike = /AppleWebKit/i.test(navigator.userAgent) && !/Chrom(?:e|ium)|Edg/i.test(navigator.userAgent);
+    preferences.setThreaded(!safariLike);`);
+fs.writeFileSync(syncName,sync);
+console.log('Patched Kiri STL bridge + memory-conscious WebKit startup.');

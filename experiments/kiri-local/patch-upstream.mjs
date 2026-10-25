@@ -129,4 +129,13 @@ try {
     root = undefined;
 }`);
 fs.writeFileSync(opfsName,opfs);
+// Kiri normally seeds a new workspace with the official cube. Suppress
+// that object only for Manabi's ?manabi=1 route: the CAD object is injected
+// automatically and must be the ONLY model loaded into Kiri.
+const inputName=path.join(upstream,'src/kiri/app/init/input.js');
+let input=fs.readFileSync(inputName,'utf8');
+const seed='if (!SETUP.s && api.feature.seed) {';
+if(input.split(seed).length!==2)throw Error('Kiri sample seed logic changed');
+input=input.replace(seed,"if (!SETUP.s && api.feature.seed && !new URLSearchParams(location.search).has('manabi')) {");
+fs.writeFileSync(inputName,input);
 console.log('Patched Kiri STL bridge, WebKit workers, and nonfatal OPFS startup.');

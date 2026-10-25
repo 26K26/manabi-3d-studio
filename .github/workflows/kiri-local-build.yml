@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -71,3 +71,43 @@ jobs:
           name: manabi-kiri-local-experiment
           path: test-site/
           retention-days: 7
+
+      - name: Checkout stable main without changing its root app
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: publish
+          persist-credentials: true
+
+      - name: Stage isolated Kiri experiment on Pages path
+        run: |
+          mkdir -p publish/kiri-local publish/preview/kiri-local
+          rsync -a --delete test-site/kiri-local/ publish/kiri-local/
+          cp test-site/index.html publish/preview/kiri-local/index.html
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('publish/preview/kiri-local/index.html')
+          s=p.read_text(encoding='utf-8')
+          old='src="./kiri-local/kiri/"'
+          if s.count(old)!=1:
+              raise SystemExit('preview iframe source was not found exactly once')
+          s=s.replace(old,'src="../../kiri-local/kiri/"')
+          s=s.replace("kiri.src='./kiri-local/kiri/?", "kiri.src='../../kiri-local/kiri/?")
+          p.write_text(s,encoding='utf-8')
+          PY
+          touch publish/.nojekyll
+          grep -F 'src="../../kiri-local/kiri/"' publish/preview/kiri-local/index.html
+          test -s publish/kiri-local/lib/kiri/run/worker.js
+
+      - name: Publish experiment subdirectory while preserving original app
+        working-directory: publish
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A kiri-local preview/kiri-local .nojekyll
+          if git diff --cached --quiet; then
+            echo 'No changes to preview assets'
+          else
+            git commit -m 'Publish isolated Kiri integration preview (not production)'
+            git push origin HEAD:main
+          fi

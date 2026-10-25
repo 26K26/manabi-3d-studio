@@ -36,14 +36,18 @@
   throw Error('Kiriが起動しませんでした。');
  }
  (async()=>{
+  let phase='端末内モデルの読込';
   try{
    setStatus('CADモデルを内部ストレージから読み込み中…');
    const obj=await window.ManabiKiriBridge.read();
    if(!obj?.buffer)throw Error('CADモデルの受け渡しデータがありません。CAD画面から「スライスへ」を押してください。');
+   phase='Kiri初期化完了待ち';
    const api=await waitForKiri();
    setStatus('KiriにCADモデルを配置中…');
-   api.mode.set('FDM');
-   api.platform.clear();
+   // Kiri opens in FDM and without its sample cube (?s=1).
+   // Do not call mode.set() / platform.clear() here: both save workspace
+   // state and can race with a WebKit IndexedDB versionchange transaction.
+   phase='Kiriモデル準備';
    const dev=api.settings?.dev?.();
    const proc=api.settings?.proc?.();
    if(dev && obj.settings?.bedX){Object.assign(dev,{bedWidth:obj.settings.bedX,bedDepth:obj.settings.bedY,maxHeight:obj.settings.bedZ,bedRound:false,bedBelt:false});}
@@ -51,12 +55,13 @@
    const url=URL.createObjectURL(new Blob([obj.buffer],{type:'application/sla'}));
    // This calls Kiri's official STL loader in the same window. There is no
    // iframe messaging, external domain, or second tab.
+   phase='KiriへのSTL直接読込';
    api.platform.load_stl(url,(vertices,widget)=>{
     URL.revokeObjectURL(url);
     if(!vertices||!widget){setStatus('STLの読み込みに失敗しました');return;}
     setStatus('CADモデルを読み込みました。Kiriの「Slice」で積層計算できます。');
     setTimeout(()=>{if(status.isConnected)status.style.opacity='0.8'},2500);
    });
-  }catch(e){setStatus('読み込みエラー: '+(e.message||e));console.error('Manabi local Kiri transfer failed',e)}
+  }catch(e){setStatus('読み込みエラー ['+phase+']: '+(e.message||e));console.error('Manabi local Kiri transfer failed in '+phase,(e.stack||e))}
  })();
 })();

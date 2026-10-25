@@ -15,7 +15,8 @@ const copy=(source,target,required=true)=>{
     console.warn('optional missing: '+from);return;
   }
   fs.mkdirSync(path.dirname(to),{recursive:true});
-  fs.cpSync(from,to,{recursive:true,force:true});
+  // GitHub Pages cannot package dangling symlinks; copy actual build assets.
+  fs.cpSync(from,to,{recursive:true,force:true,dereference:true});
 };
 for(const [from,to,req] of [
  ['web/kiri','kiri',true],['web/moto','moto',true],
@@ -55,6 +56,15 @@ function walk(dir){
  }
 }
 walk(path.join(out,'kiri-local'));
+function rejectLinks(dir){
+ for(const ent of fs.readdirSync(dir)){
+  const p=path.join(dir,ent),info=fs.lstatSync(p);
+  if(info.isSymbolicLink())throw Error('Non-portable symlink in static package: '+p);
+  if(info.isDirectory())rejectLinks(p);
+ }
+}
+rejectLinks(path.join(out,'kiri-local'));
+
 const html=fs.readFileSync(path.join(out,'kiri-local','kiri','index.html'),'utf8');
 if(!html.includes(base+'lib/main/kiri.js'))throw Error('Kiri main UI script was not rebased');
 for(const p of ['lib/main/kiri.js','lib/kiri/run/worker.js','lib/kiri/run/minion.js','kiri/index.html']){

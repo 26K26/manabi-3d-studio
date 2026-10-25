@@ -59,6 +59,30 @@ let work=fs.readFileSync(workName,'utf8');
 const oldConcurrent='concurrent = Math.round(Math.max(4, self.Worker && ccvalue > 3 ? ccvalue * 0.75 : 0)),';
 if(work.split(oldConcurrent).length!==2)throw Error('Kiri worker parallelism expression changed');
 work=work.replace(oldConcurrent,`concurrent = (/AppleWebKit/i.test(self.navigator?.userAgent||'') && !/Chrom(?:e|ium)|Edg/i.test(self.navigator?.userAgent||'')) ? 1 : Math.round(Math.max(4, self.Worker && ccvalue > 3 ? ccvalue * 0.75 : 0)),`);
+// Run per-layer slicing in the *main worker* if WebKit has no minion
+// pool. Kiri's upstream minwork.sliceZ rejects when concurrent < 2,
+// causing slice to remain at 0% and never emit slice.end.
+const sliceImport="import { sliceZ as sliceAtZ } from '../../geo/slicer.js';";
+if(!work.includes("import { Widget, newWidget }"))throw Error('Upstream worker imports moved');
+work=work.replace("import { Widget, newWidget }",sliceImport+"\nimport { Widget, newWidget }");
+const sliceReject=`            if (concurrent < 2) {
+                reject("concurrent slice unavaiable");
+            }`;
+if(work.split(sliceReject).length!==2)throw Error('Upstream minwork.sliceZ guard changed');
+work=work.replace(sliceReject,`            if (concurrent < 2) {
+                // The synchronous worker path still returns an async Promise.
+                // Keep on-each callback/collection semantics matching the
+                // minion branch, without sending work to absent minions.
+                const recs = [];
+                sliceAtZ(z, points, {
+                    ...options,
+                    each(rec) {
+                        recs.push(rec);
+                        if (options.each) options.each(rec);
+                    }
+                }).then(() => resolve(recs)).catch(reject);
+                return;
+            }`);
 fs.writeFileSync(workName,work);
 // OPFS is optional for slicing. Some WebKit contexts reject
 // navigator.storage.getDirectory() with UnknownError at module startup,

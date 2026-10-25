@@ -51,4 +51,19 @@ sync=sync.replace(before,`    // Embedded WebKit: avoid eager 4-minion pool; cor
     const safariLike = /AppleWebKit/i.test(navigator.userAgent) && !/Chrom(?:e|ium)|Edg/i.test(navigator.userAgent);
     preferences.setThreaded(!safariLike);`);
 fs.writeFileSync(syncName,sync);
-console.log('Patched Kiri STL bridge + memory-conscious WebKit startup.');
+// OPFS is optional for slicing. Some WebKit contexts reject
+// navigator.storage.getDirectory() with UnknownError at module startup,
+// preventing Kiri's entire UI from initializing. Catch it explicitly.
+const opfsName=path.join(upstream,'src/moto/opfs.js');
+let opfs=fs.readFileSync(opfsName,'utf8');
+const oldOpfs='const root = await navigator.storage?.getDirectory();';
+if(opfs.split(oldOpfs).length!==2)throw Error('Upstream OPFS initialization moved');
+opfs=opfs.replace(oldOpfs,`let root;
+try {
+    root = await navigator.storage?.getDirectory();
+} catch(error) {
+    console.warn('Kiri OPFS unavailable; continuing with slicing', error);
+    root = undefined;
+}`);
+fs.writeFileSync(opfsName,opfs);
+console.log('Patched Kiri STL bridge, WebKit workers, and nonfatal OPFS startup.');

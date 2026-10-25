@@ -77,9 +77,9 @@ try{
    frame.postMessage({mode:'FDM'},origin);
    frame.postMessage({clear:true},origin);
    phase='parse';
-   setTimeout(()=>frame.postMessage({parse:bytes,type:'stl'},origin),800);
+   setTimeout(()=>frame.postMessage({parse:new Uint8Array(bytes).buffer,type:'stl'},origin),800);
   });
- },cubeSTL());
+ },Array.from(new Uint8Array(cubeSTL())));
  console.log('RESULT '+JSON.stringify(state));
  console.log('Workers '+JSON.stringify(workers));
  console.log('Browser diagnostic log '+JSON.stringify(logs.slice(-35)));

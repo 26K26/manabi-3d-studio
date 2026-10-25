@@ -1,0 +1,73 @@
+name: Kiri local integration build (experimental)
+
+on:
+  push:
+    branches:
+      - experiment/kiri-local
+    paths:
+      - '.github/workflows/kiri-local-build.yml'
+      - 'experiments/kiri-local/**'
+      - 'index.html'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout Manabi 3D Studio experiment
+        uses: actions/checkout@v4
+
+      - name: Checkout pinned Kiri:Moto source
+        uses: actions/checkout@v4
+        with:
+          repository: GridSpace/grid-apps
+          ref: d138275bbe9d4e4030d8cb8b2dcf66607da9295a
+          path: upstream
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Kiri build dependencies
+        working-directory: upstream
+        run: npm install --no-audit --no-fund --ignore-scripts
+
+      - name: Patch in binary STL bridge
+        run: node experiments/kiri-local/patch-upstream.mjs upstream
+
+      - name: Build external dependencies
+        working-directory: upstream
+        run: npm run webpack-ext
+
+      - name: Build Kiri UI and slicer workers
+        working-directory: upstream
+        run: npm run webpack-src
+
+      - name: Prepare self-hosted site
+        run: |
+          mkdir -p test-site
+          cp index.html test-site/index.html
+          node experiments/kiri-local/build-static.mjs upstream test-site
+
+      - name: Validate packaged assets and module syntax
+        run: |
+          test -s test-site/kiri-local/kiri/index.html
+          test -s test-site/kiri-local/lib/main/kiri.js
+          test -s test-site/kiri-local/lib/kiri/run/worker.js
+          test -s test-site/kiri-local/lib/kiri/run/minion.js
+          node --check test-site/kiri-local/lib/main/kiri.js
+          node --check test-site/kiri-local/lib/kiri/run/worker.js
+          node --check test-site/kiri-local/lib/kiri/run/minion.js
+          node -e "const fs=require('fs');const s=fs.readFileSync('test-site/index.html','utf8');if(!s.includes('src=\"./kiri-local/kiri/\"'))process.exit(1)"
+
+      - name: Upload test site (not a production deployment)
+        uses: actions/upload-artifact@v4
+        with:
+          name: manabi-kiri-local-experiment
+          path: test-site/
+          retention-days: 7

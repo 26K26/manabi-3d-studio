@@ -65,6 +65,16 @@ jobs:
           node --check test-site/kiri-local/lib/kiri/run/minion.js
           node -e "const fs=require('fs');const s=fs.readFileSync('test-site/index.html','utf8');if(!s.includes('src=\"./kiri-local/kiri/\"'))process.exit(1)"
 
+      - name: Install Chromium test harness
+        run: |
+          npm install --no-audit --no-fund --no-save playwright-core
+          command -v google-chrome || command -v chromium || command -v chromium-browser
+
+      - name: Verify CAD STL slicing reaches Kiri slice.end in Chromium
+        run: |
+          CHROME_BIN="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          CHROME_BIN="$CHROME_BIN" node experiments/kiri-local/smoke.mjs test-site
+
       - name: Upload test site (not a production deployment)
         uses: actions/upload-artifact@v4
         with:

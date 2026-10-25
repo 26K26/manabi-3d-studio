@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>まなび3D Studio — v0.4.9 スライサー転送改善版</title>
+<title>まなび3D Studio — v0.5.0（実験）Kiri同一配信元版</title>
 <style>
 :root{font-family:system-ui,-apple-system,"Noto Sans JP",sans-serif;background:#0b1120;color:#eef3ff;--line:#2a3852;--muted:#a7b6ce;--panel:#101b30;--accent:#78baff}*{box-sizing:border-box}
 body{margin:0}button,select,input{font:inherit}button{background:#203452;color:#f3f8ff;border:1px solid #45617e;border-radius:9px;padding:9px 12px;cursor:pointer}button:hover{background:#2d496e}button:disabled{opacity:.42;cursor:not-allowed}button.primary{background:#175c9c;border-color:#3997ee;font-weight:700}button.danger{color:#ffb9b6;border-color:#765352}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid #89caff;outline-offset:2px}
@@ -124,7 +124,7 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
 <header>
  <strong>◇ まなび3D Studio</strong><small>CAD × Kiri:Moto</small>
  <nav class="tabs" aria-label="機能切替"><button id="tabCad" class="active" aria-current="page">① CAD</button><button id="tabSlice">② スライス</button></nav>
- <span class="grow"></span><span class="tag">Kiri転送改善 v0.4.9</span>
+ <span class="grow"></span><span class="tag">内蔵Kiri実験 v0.5.0</span>
 </header>
 <div id="root">
 <section id="cadPage" class="page active" aria-label="CAD編集">
@@ -196,7 +196,7 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
      <div class="previewViewport" id="previewViewport"><canvas id="previewCanvas" aria-label="転送前のCADモデル"></canvas></div>
      <div class="previewActions"><span id="previewResult">CADのモデルをここで確認できます（Kiriへの読み込みとは別です）</span><button id="exportForKiri" type="button">STLを保存</button><button id="toggleKiri" type="button">Kiriを広く表示</button></div>
    </div>
-   <iframe id="kiri" src="https://grid.space/kiri/" title="Kiri:Moto スライサー" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+   <iframe id="kiri" src="./kiri-local/kiri/" title="Kiri:Moto スライサー" referrerpolicy="strict-origin-when-cross-origin"></iframe>
   </div>
   <aside id="sliceTips">
    <h2>印刷前の設定</h2>
@@ -972,7 +972,7 @@ async function refreshSlicePreview(stl){
 $('toggleKiri').onclick=()=>{const small=$('slicePreviewPanel').classList.toggle('collapsed');$('toggleKiri').textContent=small?'CADプレビューを表示':'Kiriを広く表示';};
 $('exportForKiri').onclick=async()=>{try{const stl=await toStlBuffer();download(stl,'manabi3d-for-kiri.stl','model/stl');notify('STLを端末に保存しました。Kiri画面からこのファイルをImportしてね。');}catch(e){notify('STL保存失敗：'+e.message);}};
 
-$('printer').onchange=onProfile;onProfile();const kiri=$('kiri');const apiOrigin='https://grid.space';let kiriLoaded=false;let kiriLoadedAt=0;let pendingTransfer=false;let transferring=false;let transferSequence=0;
+$('printer').onchange=onProfile;onProfile();const kiri=$('kiri');const apiOrigin=window.location.origin;let kiriLoaded=false;let kiriLoadedAt=0;let pendingTransfer=false;let transferring=false;let transferSequence=0;
 function sendKiri(data){try{kiri.contentWindow.postMessage(data,apiOrigin);return true;}catch(e){notify('Kiri:Motoへの連携に失敗しました：'+e.message);return false;}}
 function subscribeKiri(){['parsed','loaded','slice.end','slice.error','preview.end','preview.error'].forEach(event=>sendKiri({event}));}
 kiri.addEventListener('load',()=>{kiriLoaded=true;kiriLoadedAt=Date.now();$('kiriStatus').textContent='Kiri画面表示済み（起動準備中）';$('kiriStatus').dataset.state='';subscribeKiri();if(pendingTransfer){pendingTransfer=false;transfer();}});
@@ -1010,7 +1010,8 @@ async function transfer(){
   $('kiriStatus').textContent='CADからSTL生成中…';
   const data=await toStlBuffer();
   await refreshSlicePreview(data);
-  const url=stlDataUrl(data);
+  // Direct binary handoff, without STL download, data URL, or remote iframe.
+  const directStl=data;
   if(sequence!==transferSequence)return;
   // Loading the iframe is not the same as Kiri's JS being ready.
   // The internal app initializes asynchronously on iPad / Chromebook.
@@ -1025,7 +1026,7 @@ async function transfer(){
   await sleep(180);
   if(sequence!==transferSequence)return;
   $('kiriStatus').textContent='KiriへSTLを送信中…';
-  if(!sendKiri({load:url}))throw Error('KiriにSTLの読み込み要求を送れませんでした');
+  if(!sendKiri({parse:directStl,type:'stl'}))throw Error('内蔵KiriにSTLを送れませんでした');
   $('kiriStatus').dataset.state='sent';
   $('kiriStatus').textContent='STL送信済み ／ 下のKiri作業台でモデルを確認';
   notify('CADモデルをKiriへ送信しました。下のKiri作業台に立体が表示されたら「Slice」を押せます。表示されない場合はKiri再起動かSTL保存を試してね。');
@@ -1039,7 +1040,7 @@ $('reloadKiri').onclick=()=>{
  $('kiriStatus').dataset.state='sending';
  $('kiriStatus').textContent='Kiriを再起動中…';
  // Reload the iframe without discarding the CAD or STL.
- kiri.src='https://grid.space/kiri/?manabi_reopen='+Date.now();
+ kiri.src='./kiri-local/kiri/?manabi_reopen='+Date.now();
  notify('Kiri:Motoを再起動しています。CADモデルは再送信します。');
 };
 // Known-good URL from the upstream Kiri:Moto engine demonstration.

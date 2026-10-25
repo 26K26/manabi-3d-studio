@@ -63,7 +63,10 @@ jobs:
           node --check test-site/kiri-local/lib/main/kiri.js
           node --check test-site/kiri-local/lib/kiri/run/worker.js
           node --check test-site/kiri-local/lib/kiri/run/minion.js
-          node -e "const fs=require('fs');const s=fs.readFileSync('test-site/index.html','utf8');if(!s.includes('src=\"./kiri-local/kiri/\"'))process.exit(1)"
+          node -e "const fs=require('fs');const s=fs.readFileSync('test-site/index.html','utf8');if(!s.includes('src=\"about:blank\"')||!s.includes('enterFullPageKiri'))process.exit(1)"
+          test -s test-site/kiri-local/bridge.js
+          test -s test-site/kiri-local/auto-import.js
+          grep -q 'auto-import.js' test-site/kiri-local/kiri/index.html
 
       - name: Install Chromium test harness
         run: |
@@ -108,15 +111,14 @@ jobs:
           from pathlib import Path
           p=Path('publish/preview/kiri-local/index.html')
           s=p.read_text(encoding='utf-8')
-          old='src="./kiri-local/kiri/"'
-          if s.count(old)!=1:
-              raise SystemExit('preview iframe source was not found exactly once')
-          s=s.replace(old,'src="../../kiri-local/kiri/"')
-          s=s.replace("kiri.src='./kiri-local/kiri/?", "kiri.src='../../kiri-local/kiri/?")
+          if s.count('src="about:blank"')!=1:
+              raise SystemExit('Full-page CAD must not eagerly load Kiri in an iframe')
+          if 'enterFullPageKiri' not in s:
+              raise SystemExit('Automatic CAD to Kiri route missing')
           p.write_text(s,encoding='utf-8')
           PY
           touch publish/.nojekyll
-          grep -F 'src="../../kiri-local/kiri/"' publish/preview/kiri-local/index.html
+          grep -F 'src="about:blank"' publish/preview/kiri-local/index.html
           test -s publish/kiri-local/lib/kiri/run/worker.js
 
       - name: Publish experiment subdirectory while preserving original app

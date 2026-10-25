@@ -4,6 +4,7 @@
 // <output-root>/kiri-local/kiri/index.html are served on the same origin.
 // No user STL files are uploaded to a server.
 import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 const up=path.resolve(process.argv[2]||'upstream');
 const out=path.resolve(process.argv[3]||'test-site');
@@ -16,7 +17,10 @@ const copy=(source,target,required=true)=>{
   }
   fs.mkdirSync(path.dirname(to),{recursive:true});
   // GitHub Pages cannot package dangling symlinks; copy actual build assets.
-  fs.cpSync(from,to,{recursive:true,force:true,dereference:true});
+  // GitHub Pages tar dereferences links. Use cp -RL to resolve *nested*
+  // upstream symlinks too; Node cpSync left some nested aliases as symlinks.
+  fs.rmSync(to,{recursive:true,force:true});
+  execFileSync('cp',['-RL',from,to]);
 };
 for(const [from,to,req] of [
  ['web/kiri','kiri',true],['web/moto','moto',true],

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>まなび3D Studio — v0.4.10 スライス停止の切り分け版</title>
+<title>まなび3D Studio — v0.4.9 スライサー転送改善版</title>
 <style>
 :root{font-family:system-ui,-apple-system,"Noto Sans JP",sans-serif;background:#0b1120;color:#eef3ff;--line:#2a3852;--muted:#a7b6ce;--panel:#101b30;--accent:#78baff}*{box-sizing:border-box}
 body{margin:0}button,select,input{font:inherit}button{background:#203452;color:#f3f8ff;border:1px solid #45617e;border-radius:9px;padding:9px 12px;cursor:pointer}button:hover{background:#2d496e}button:disabled{opacity:.42;cursor:not-allowed}button.primary{background:#175c9c;border-color:#3997ee;font-weight:700}button.danger{color:#ffb9b6;border-color:#765352}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid #89caff;outline-offset:2px}
@@ -110,7 +110,7 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
 .previewActions span{flex:1}
 .previewActions button{font-size:11px;padding:6px 8px;white-space:nowrap}
 #sliceViewer #kiri{flex:1;height:0;min-height:180px}
-#sliceBar #reloadKiri,#sliceBar #openDirectKiri{font-size:12px;padding:7px 9px}
+#sliceBar #reloadKiri{font-size:12px;padding:7px 9px}
 #kiriStatus[data-state="sending"]{color:#1764a3;font-weight:650}
 #kiriStatus[data-state="sent"]{color:#536a80}
 #kiriStatus[data-state="error"]{color:#b42d2d}
@@ -124,7 +124,7 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
 <header>
  <strong>◇ まなび3D Studio</strong><small>CAD × Kiri:Moto</small>
  <nav class="tabs" aria-label="機能切替"><button id="tabCad" class="active" aria-current="page">① CAD</button><button id="tabSlice">② スライス</button></nav>
- <span class="grow"></span><span class="tag">Kiri 0%診断 v0.4.10</span>
+ <span class="grow"></span><span class="tag">Kiri転送改善 v0.4.9</span>
 </header>
 <div id="root">
 <section id="cadPage" class="page active" aria-label="CAD編集">
@@ -187,7 +187,7 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
   <button id="backCad">← CADへ</button>
   <label for="printer">プリンター</label><select id="printer"><option value="a1mini">Bambu Lab A1 mini（参考）</option><option value="generic">汎用FDM（例）</option><option value="custom">カスタム（仮）</option></select>
   <label for="printerNozzle">ノズル</label><select id="printerNozzle"><option value="0.4">0.4mm</option><option value="0.6">0.6mm</option><option value="0.2">0.2mm</option></select>
-  <button id="sendToKiri" class="primary">↻ CADモデルをKiriに読み込む</button><button id="reloadKiri" type="button" title="Kiri:Motoだけを再起動。CADの編集データは消えません">Kiri再起動</button><button id="openDirectKiri" type="button" title="Kiriを別タブで開き、CADデータの受け渡しを試します">↗ Kiriを独立起動</button><span id="kiriStatus" role="status" aria-live="polite">Kiri:Motoを読み込み中</span>
+  <button id="sendToKiri" class="primary">↻ CADモデルをKiriに読み込む</button><button id="reloadKiri" type="button" title="Kiri:Motoだけを再起動。CADの編集データは消えません">Kiri再起動</button><span id="kiriStatus" role="status" aria-live="polite">Kiri:Motoを読み込み中</span>
  </div>
  <div id="sliceBody">
   <div id="sliceViewer">
@@ -207,11 +207,8 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
    <p><strong>「スライスへ」でCADのSTLをKiri:Motoへ送ります。</strong> 下のKiri作業台にモデルが現れたら読み込み成功。上部のCADプレビューだけでは転送確認になりません。</p>
    <p>iPadなどでモデルが出ない場合は「Kiri再起動」後に「CADモデルをKiriに読み込む」をもう一度押してください。外部埋め込み側の受信はまだ機種別検証中です。</p>
    <p>直接転送ができない場合は「STLを保存」→ Kiri:Motoの「Import」でそのSTLを読み込めます。手動での取り込みが必要な点は今後改善します。</p>
-   <button id="testKiri" style="width:100%;margin-top:4px">切り分け診断：公式立方体でスライス</button>
-   <p class="hint">公式立方体でも0%なら、CAD形状よりKiri本体・印刷設定・Workerの問題が疑われます。公式立方体が正常にスライスされるなら、CAD生成STLの形状を確認します。</p>
-   <button id="directResend" type="button" style="width:100%;margin-top:4px">↗ 独立Kiriに再送信（別タブ起動後）</button>
-   <p class="hint">埋め込みではスライスが止まる場合は、Kiriを独立タブで試せます。自動転送が届かない場合も、STLを保存してKiri本体で「Import」すれば作業を継続できます。</p>
-   <p>①「公式立方体でスライス」を押して、サンプルでも0%で止まるか確認。② Kiriの操作画面でも止まる場合は「Kiriを独立起動」。③ 独立版でも止まる場合はプリンタープロファイルやKiriの処理環境を確認してください。</p>
+   <button id="testKiri" style="width:100%;margin-top:4px">接続診断：Kiri公式の立方体を読み込む</button>
+   <p>① 上のボタンでKiriに立方体が出るか確認。② 出たら「CADモデルを転送」で自分のモデルを試す。<br>公式の立方体も出ない場合は、外部からの操作メッセージが処理されていません。公式の立方体は出るのにCADモデルが出ない場合は、STLを渡す形式が原因の可能性があります。</p>
    <p>ファイルの書き出しは、右ではなく左側のKiri:Moto画面内にある出力操作で端末に保存します。プリンター用出力形式は機種に応じて今後対応します。</p>
    <div class="notice">未検証：生成したG-codeや3MFがどのプリンターでも安全に動くことを保証しません。開始・終了コード、ファームウェア、機種別出力形式の検証が済むまで実機印刷は行わないでください。</div>
    <p><a href="https://grid.space/kiri/" target="_blank" rel="noopener noreferrer">Kiri:Motoを別タブで開く ↗</a></p>
@@ -970,17 +967,12 @@ async function refreshSlicePreview(stl){
  const dist=Math.max(50,Math.max(size.x,size.y,size.z)*2.5);
  previewCamera.position.set(dist*.65,-dist*.88,dist*.65);previewCamera.lookAt(previewControl.target);previewControl.update();
  $('previewDimensions').textContent=`${size.x.toFixed(1)} × ${size.y.toFixed(1)} × ${size.z.toFixed(1)} mm`;
- // STL face count is an objective way to spot potentially heavy iPad models.
- const faces=stl.byteLength>=84?new DataView(stl).getUint32(80,true):0;
- const heavy=faces>30000;
- $('previewResult').textContent=heavy
-  ? `⚠ 三角形 ${faces.toLocaleString('ja-JP')} 面。iPadではスライスが重くなる可能性があります。まず公式立方体で診断してください。`
-  : `✓ CADモデル ${faces.toLocaleString('ja-JP')} 面（Kiriでのスライス成功は別途確認）`;
+ $('previewResult').textContent='✓ CADモデルは正常（Kiriでの受信は別途確認）';
 }
 $('toggleKiri').onclick=()=>{const small=$('slicePreviewPanel').classList.toggle('collapsed');$('toggleKiri').textContent=small?'CADプレビューを表示':'Kiriを広く表示';};
 $('exportForKiri').onclick=async()=>{try{const stl=await toStlBuffer();download(stl,'manabi3d-for-kiri.stl','model/stl');notify('STLを端末に保存しました。Kiri画面からこのファイルをImportしてね。');}catch(e){notify('STL保存失敗：'+e.message);}};
 
-$('printer').onchange=onProfile;onProfile();const kiri=$('kiri');const apiOrigin='https://grid.space';let directKiriWindow=null;let directKiriOpenedAt=0;let kiriLoaded=false;let kiriLoadedAt=0;let pendingTransfer=false;let transferring=false;let transferSequence=0;
+$('printer').onchange=onProfile;onProfile();const kiri=$('kiri');const apiOrigin='https://grid.space';let kiriLoaded=false;let kiriLoadedAt=0;let pendingTransfer=false;let transferring=false;let transferSequence=0;
 function sendKiri(data){try{kiri.contentWindow.postMessage(data,apiOrigin);return true;}catch(e){notify('Kiri:Motoへの連携に失敗しました：'+e.message);return false;}}
 function subscribeKiri(){['parsed','loaded','slice.end','slice.error','preview.end','preview.error'].forEach(event=>sendKiri({event}));}
 kiri.addEventListener('load',()=>{kiriLoaded=true;kiriLoadedAt=Date.now();$('kiriStatus').textContent='Kiri画面表示済み（起動準備中）';$('kiriStatus').dataset.state='';subscribeKiri();if(pendingTransfer){pendingTransfer=false;transfer();}});
@@ -1053,87 +1045,14 @@ $('reloadKiri').onclick=()=>{
 // Known-good URL from the upstream Kiri:Moto engine demonstration.
 // This tests whether the iframe accepts basic parent instructions, independently
 // of our STL data: URL serialization. Visual verification is necessary.
-// Diagnostic: use Kiri's known-good cube to distinguish runtime problems
-// from geometry generated by the CAD. Slice is triggered by the official
-// frame API function call, not merely the parent app's 3D preview.
-let testSliceId=0;
-$('testKiri').onclick=async()=>{
- if(!kiriLoaded){notify('Kiri:Moto画面の起動後に試してください');return;}
- const n=++testSliceId;
- $('kiriStatus').dataset.state='sending';
- $('kiriStatus').textContent='公式立方体を読み込み、スライス診断を実行中…';
- try{
-  sendKiri({mode:'FDM'});
-  await sleep(300);
-  if(n!==testSliceId)return;
-  sendKiri({clear:true});
-  await sleep(220);
-  if(n!==testSliceId)return;
-  sendKiri({load:'https://grid.space/obj/cube.stl'});
-  await sleep(2300);
-  if(n!==testSliceId)return;
-  // The Kiri frame API accepts {function:"slice"}.
-  sendKiri({function:'slice'});
-  $('kiriStatus').textContent='公式立方体のスライス要求を送信（Kiri画面で進捗を確認）';
-  $('kiriStatus').dataset.state='sent';
-  notify('公式立方体のスライスを要求しました。Kiriの画面で0%から進むか確認してね。モデルが出ない場合はサンプルの読み込みにも失敗しています。');
- }catch(e){
-  $('kiriStatus').textContent='サンプル診断失敗';
-  $('kiriStatus').dataset.state='error';
-  notify('サンプル診断中のエラー：'+(e.message||e));
+$('testKiri').onclick=()=>{
+ if(!kiriLoaded){notify('Kiri:Moto画面の読み込み後に試してください');return;}
+ if(!sendKiri({mode:'FDM'})||!sendKiri({clear:true})||!sendKiri({load:'https://grid.space/obj/cube.stl'})){
+  $('kiriStatus').textContent='サンプル読込要求を送れませんでした';$('kiriStatus').dataset.state='error';return;
  }
+ $('kiriStatus').textContent='サンプル立方体の読込要求を送信（画面で確認）';$('kiriStatus').dataset.state='';
+ notify('Kiri画面にサンプル立方体が出るか確認してください。出なければKiriの埋め込み連携が動作していません。');
 };
-// If Kiri's worker is affected by third-party iframe restrictions, opening
-// Kiri as a first-party top-level page may help. No claim of guaranteed
-// automatic handoff: background tabs on iPad may suspend the sender.
-function canSendDirectKiri(){
- try{return directKiriWindow&&!directKiriWindow.closed;}catch{return false;}
-}
-async function sendDirectKiri(){
- if(!canSendDirectKiri())throw Error('独立Kiriが開いていません。「Kiriを独立起動」を押してね');
- if(!items.length)throw Error('CADにモデルがありません');
- const buf=await toStlBuffer();
- const url=stlDataUrl(buf);
- directKiriWindow.postMessage({mode:'FDM'},apiOrigin);
- await sleep(330);
- directKiriWindow.postMessage({clear:true},apiOrigin);
- await sleep(220);
- directKiriWindow.postMessage({load:url},apiOrigin);
- return true;
-}
-$('openDirectKiri').onclick=()=>{
- // Open synchronously inside a user gesture, especially on iPad Safari.
- // The opener is retained intentionally to permit a narrow postMessage bridge.
- try{
-  if(!canSendDirectKiri()){
-   directKiriWindow=window.open('https://grid.space/kiri/','manabi3d_kiri_slicer');
-   directKiriOpenedAt=Date.now();
-  }else{
-   directKiriWindow.focus();
-  }
-  if(!directKiriWindow)throw Error('新しいタブがブロックされました。Safariのポップアップ設定を確認してください');
-  $('kiriStatus').textContent='独立Kiriを開きました。CADモデルを送信準備中…';
-  notify('独立Kiriを開きました。自動転送を試します。新しいタブでモデルが表示されなければ元のタブから「独立Kiriに再送信」を押してください。');
-  (async()=>{
-   try{
-    const initialWait=Math.max(0,4600-(Date.now()-directKiriOpenedAt));
-    if(initialWait)await sleep(initialWait);
-    await sendDirectKiri();
-    $('kiriStatus').textContent='独立Kiriにモデル送信要求を実行（表示は別タブで確認）';
-    notify('独立Kiriへモデルを送信しました。表示されなければ再送信、またはSTL保存→Importを試してください。');
-   }catch(e){$('kiriStatus').textContent='独立Kiriへの自動転送は未確認';notify('独立Kiri：'+(e.message||e));}
-  })();
- }catch(e){notify('独立Kiriを開けません：'+(e.message||e));}
-};
-$('directResend').onclick=async()=>{
- try{
-  $('kiriStatus').textContent='独立Kiriに再送信中…';
-  await sendDirectKiri();
-  $('kiriStatus').textContent='独立Kiriに再送信済み（別タブでモデル表示を確認）';
-  notify('独立Kiriへ再送信しました。別タブでモデルを確認し、Sliceを押してみてね。');
- }catch(e){notify('独立Kiriへの再送信失敗：'+(e.message||e));}
-};
-
 $('sendToKiri').onclick=transfer;$('toSlice').onclick=()=>{setTab('slice');transfer();};
 // Restore small drafts. No account and no server. Save explicit project files for long-term work.
 try{const saved=localStorage.getItem('manabi3d-cad-draft-v1');if(saved){loadProjectString(saved);notify('このブラウザの前回の編集内容を復元しました');}else{notify('準備完了。図形を追加して始めよう。');}}catch(e){notify('ブラウザの保存データは使用できません。手動保存は可能です。');}

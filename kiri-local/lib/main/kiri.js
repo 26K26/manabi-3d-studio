@@ -136161,7 +136161,8 @@ function ui_sync() {
   ui6.showSpeeds.checked = control.showSpeeds;
   ui6.spaceRandoX.checked = control.spaceRandoX;
   ui6.webGPU.checked = control.webGPU;
-  preferences.setThreaded(true);
+  const safariLike = /AppleWebKit/i.test(navigator.userAgent) && !/Chrom(?:e|ium)|Edg/i.test(navigator.userAgent);
+  preferences.setThreaded(!safariLike);
   preferences.lineTypeSave();
   preferences.detailSave();
   api2.visuals.update_stats();

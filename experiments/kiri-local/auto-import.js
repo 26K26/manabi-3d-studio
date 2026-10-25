@@ -16,12 +16,24 @@
  const setStatus=s=>{status.textContent=s;console.log('MANABI KIRI:',s)};
  document.body.append(back,status);
  async function waitForKiri(){
+  // kiri.api appears BEFORE Kiri finishes its asynchronous startup.
+  // Kiri's own kiri.load(callback) runs only after init_input and init_sync
+  // finish, avoiding IndexedDB "version change transaction is running".
   for(let i=0;i<200;i++){
-   const api=window.kiri?.api;
-   if(api?.platform?.load_stl && api?.mode?.set)return api;
+   const kiri=window.kiri;
+   if(typeof kiri?.load==='function'){
+    return await new Promise((resolve,reject)=>{
+     const timer=setTimeout(()=>reject(Error('Kiriの初期化が完了しませんでした。')),36000);
+     kiri.load(api=>{
+      clearTimeout(timer);
+      if(api?.platform?.load_stl && api?.mode?.set)resolve(api);
+      else reject(Error('Kiriの読み込みAPIを利用できません'));
+     },'manabi3d-local-handoff');
+    });
+   }
    await new Promise(r=>setTimeout(r,180));
   }
-  throw Error('Kiriの初期化が完了しませんでした。');
+  throw Error('Kiriが起動しませんでした。');
  }
  (async()=>{
   try{

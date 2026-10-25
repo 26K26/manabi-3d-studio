@@ -46,7 +46,7 @@ jobs:
 
       - name: Build Kiri UI and slicer workers
         working-directory: upstream
-        run: npm run webpack-src
+        run: npm run webpack-src -- prod
 
       - name: Prepare self-hosted site
         run: |

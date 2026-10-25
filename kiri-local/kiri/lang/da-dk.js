@@ -1,0 +1,1 @@
+/home/runner/work/manabi-3d-studio/manabi-3d-studio/upstream/web/kiri/lang/da.js

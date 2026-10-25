@@ -970,7 +970,12 @@ async function refreshSlicePreview(stl){
  const dist=Math.max(50,Math.max(size.x,size.y,size.z)*2.5);
  previewCamera.position.set(dist*.65,-dist*.88,dist*.65);previewCamera.lookAt(previewControl.target);previewControl.update();
  $('previewDimensions').textContent=`${size.x.toFixed(1)} × ${size.y.toFixed(1)} × ${size.z.toFixed(1)} mm`;
- $('previewResult').textContent='✓ CADモデルは正常（Kiriでの受信は別途確認）';
+ // STL face count is an objective way to spot potentially heavy iPad models.
+ const faces=stl.byteLength>=84?new DataView(stl).getUint32(80,true):0;
+ const heavy=faces>30000;
+ $('previewResult').textContent=heavy
+  ? `⚠ 三角形 ${faces.toLocaleString('ja-JP')} 面。iPadではスライスが重くなる可能性があります。まず公式立方体で診断してください。`
+  : `✓ CADモデル ${faces.toLocaleString('ja-JP')} 面（Kiriでのスライス成功は別途確認）`;
 }
 $('toggleKiri').onclick=()=>{const small=$('slicePreviewPanel').classList.toggle('collapsed');$('toggleKiri').textContent=small?'CADプレビューを表示':'Kiriを広く表示';};
 $('exportForKiri').onclick=async()=>{try{const stl=await toStlBuffer();download(stl,'manabi3d-for-kiri.stl','model/stl');notify('STLを端末に保存しました。Kiri画面からこのファイルをImportしてね。');}catch(e){notify('STL保存失敗：'+e.message);}};

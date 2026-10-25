@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>まなび3D Studio — v0.4.8 単独表示追加版</title>
+<title>まなび3D Studio — v0.4.9 スライサー転送改善版</title>
 <style>
 :root{font-family:system-ui,-apple-system,"Noto Sans JP",sans-serif;background:#0b1120;color:#eef3ff;--line:#2a3852;--muted:#a7b6ce;--panel:#101b30;--accent:#78baff}*{box-sizing:border-box}
 body{margin:0}button,select,input{font:inherit}button{background:#203452;color:#f3f8ff;border:1px solid #45617e;border-radius:9px;padding:9px 12px;cursor:pointer}button:hover{background:#2d496e}button:disabled{opacity:.42;cursor:not-allowed}button.primary{background:#175c9c;border-color:#3997ee;font-weight:700}button.danger{color:#ffb9b6;border-color:#765352}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid #89caff;outline-offset:2px}
@@ -110,6 +110,10 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
 .previewActions span{flex:1}
 .previewActions button{font-size:11px;padding:6px 8px;white-space:nowrap}
 #sliceViewer #kiri{flex:1;height:0;min-height:180px}
+#sliceBar #reloadKiri{font-size:12px;padding:7px 9px}
+#kiriStatus[data-state="sending"]{color:#1764a3;font-weight:650}
+#kiriStatus[data-state="sent"]{color:#536a80}
+#kiriStatus[data-state="error"]{color:#b42d2d}
 @media(max-width:690px){#sliceViewer{min-height:0;flex:1}#slicePreviewPanel{height:170px}#sliceViewer #kiri{flex:1;min-height:240px}}
 </style>
 <script type="importmap">
@@ -120,7 +124,7 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
 <header>
  <strong>◇ まなび3D Studio</strong><small>CAD × Kiri:Moto</small>
  <nav class="tabs" aria-label="機能切替"><button id="tabCad" class="active" aria-current="page">① CAD</button><button id="tabSlice">② スライス</button></nav>
- <span class="grow"></span><span class="tag">単独表示追加 v0.4.8</span>
+ <span class="grow"></span><span class="tag">Kiri転送改善 v0.4.9</span>
 </header>
 <div id="root">
 <section id="cadPage" class="page active" aria-label="CAD編集">
@@ -183,7 +187,7 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
   <button id="backCad">← CADへ</button>
   <label for="printer">プリンター</label><select id="printer"><option value="a1mini">Bambu Lab A1 mini（参考）</option><option value="generic">汎用FDM（例）</option><option value="custom">カスタム（仮）</option></select>
   <label for="printerNozzle">ノズル</label><select id="printerNozzle"><option value="0.4">0.4mm</option><option value="0.6">0.6mm</option><option value="0.2">0.2mm</option></select>
-  <button id="sendToKiri" class="primary">Kiriに転送を試す</button><span id="kiriStatus" role="status">Kiri:Motoを読み込み中</span>
+  <button id="sendToKiri" class="primary">↻ CADモデルをKiriに読み込む</button><button id="reloadKiri" type="button" title="Kiri:Motoだけを再起動。CADの編集データは消えません">Kiri再起動</button><span id="kiriStatus" role="status" aria-live="polite">Kiri:Motoを読み込み中</span>
  </div>
  <div id="sliceBody">
   <div id="sliceViewer">
@@ -199,8 +203,9 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
    <p id="printerInfo">A1 mini / 180 × 180 × 180 mm</p>
    <div class="fieldPair"><label>造形幅 X (mm)<input id="bedX" type="number" min="1" max="1000" step="1" value="180"></label><label>奥行 Y (mm)<input id="bedY" type="number" min="1" max="1000" step="1" value="180"></label><label>高さ Z (mm)<input id="bedZ" type="number" min="1" max="1000" step="1" value="180"></label><label>積層高さ (mm)<input id="layerHeight" type="number" min="0.04" max="1" step="0.04" value="0.2"></label></div>
    <button id="applyPrinter" style="width:100%;margin-top:9px">Kiriにサイズと積層設定を送信</button>
-   <h2>CAD → Kiri の転送確認</h2>
-   <p><strong>上のCADプレビューは確実に確認できますが、Kiriのモデル一覧に表示されるまでは転送成功ではありません。</strong> 現在、外部埋め込みの連携は未解決です。</p>
+   <h2>CAD → Kiri 連携</h2>
+   <p><strong>「スライスへ」でCADのSTLをKiri:Motoへ送ります。</strong> 下のKiri作業台にモデルが現れたら読み込み成功。上部のCADプレビューだけでは転送確認になりません。</p>
+   <p>iPadなどでモデルが出ない場合は「Kiri再起動」後に「CADモデルをKiriに読み込む」をもう一度押してください。外部埋め込み側の受信はまだ機種別検証中です。</p>
    <p>直接転送ができない場合は「STLを保存」→ Kiri:Motoの「Import」でそのSTLを読み込めます。手動での取り込みが必要な点は今後改善します。</p>
    <button id="testKiri" style="width:100%;margin-top:4px">接続診断：Kiri公式の立方体を読み込む</button>
    <p>① 上のボタンでKiriに立方体が出るか確認。② 出たら「CADモデルを転送」で自分のモデルを試す。<br>公式の立方体も出ない場合は、外部からの操作メッセージが処理されていません。公式の立方体は出るのにCADモデルが出ない場合は、STLを渡す形式が原因の可能性があります。</p>
@@ -967,40 +972,76 @@ async function refreshSlicePreview(stl){
 $('toggleKiri').onclick=()=>{const small=$('slicePreviewPanel').classList.toggle('collapsed');$('toggleKiri').textContent=small?'CADプレビューを表示':'Kiriを広く表示';};
 $('exportForKiri').onclick=async()=>{try{const stl=await toStlBuffer();download(stl,'manabi3d-for-kiri.stl','model/stl');notify('STLを端末に保存しました。Kiri画面からこのファイルをImportしてね。');}catch(e){notify('STL保存失敗：'+e.message);}};
 
-$('printer').onchange=onProfile;onProfile();const kiri=$('kiri');const apiOrigin='https://grid.space';let kiriLoaded=false;let pendingTransfer=false;let transferring=false;
+$('printer').onchange=onProfile;onProfile();const kiri=$('kiri');const apiOrigin='https://grid.space';let kiriLoaded=false;let kiriLoadedAt=0;let pendingTransfer=false;let transferring=false;let transferSequence=0;
 function sendKiri(data){try{kiri.contentWindow.postMessage(data,apiOrigin);return true;}catch(e){notify('Kiri:Motoへの連携に失敗しました：'+e.message);return false;}}
 function subscribeKiri(){['parsed','loaded','slice.end','slice.error','preview.end','preview.error'].forEach(event=>sendKiri({event}));}
-kiri.addEventListener('load',()=>{kiriLoaded=true;$('kiriStatus').textContent='Kiri画面表示済み（モデル未転送）';$('kiriStatus').dataset.state='';subscribeKiri();if(pendingTransfer){pendingTransfer=false;transfer();}});
+kiri.addEventListener('load',()=>{kiriLoaded=true;kiriLoadedAt=Date.now();$('kiriStatus').textContent='Kiri画面表示済み（起動準備中）';$('kiriStatus').dataset.state='';subscribeKiri();if(pendingTransfer){pendingTransfer=false;transfer();}});
 window.addEventListener('message',e=>{if(e.source!==kiri.contentWindow||e.origin!==apiOrigin||typeof e.data!=='object'||!e.data)return;const key=e.data.event;if(key==='parsed'||key==='loaded'){transferring=false;$('kiriStatus').textContent='✓ Kiriから読み込み通知を確認';$('kiriStatus').dataset.state='ok';notify('Kiriから読み込みイベントを受信しました。モデルを画面で確認してください。');}else if(key==='slice.error'||key==='preview.error')notify('Kiri:Moto処理エラー：設定とモデルを確認してください');});
 function showBoundsWarning(){const x=Number($('bedX').value),y=Number($('bedY').value),z=Number($('bedZ').value);if(!items.length)return;const group=new THREE.Group();for(const it of items){group.add(it.mesh.clone());}group.updateMatrixWorld(true);const bounds=new THREE.Box3().setFromObject(group);const size=bounds.getSize(new THREE.Vector3());if(size.x>x||size.y>y||size.z>z)notify(`注意：モデル外形 ${size.x.toFixed(1)} × ${size.y.toFixed(1)} × ${size.z.toFixed(1)} mm が造形範囲を超えています`);}
 $('applyPrinter').onclick=()=>{const x=Number($('bedX').value),y=Number($('bedY').value),z=Number($('bedZ').value),height=Number($('layerHeight').value);if([x,y,z].some(v=>!Number.isFinite(v)||v<1||v>1000)||!Number.isFinite(height)||height<.04||height>1){notify('造形サイズ・積層設定の値を確認してください');return;}
  sendKiri({mode:'FDM'});sendKiri({device:{bedWidth:x,bedDepth:y,maxHeight:z,bedRound:false,bedBelt:false}});sendKiri({process:{sliceHeight:height,firstSliceHeight:height}});showBoundsWarning();$('kiriStatus').textContent='設定送信済み（反映未確認）';notify('Kiriに設定を送信しました。プリンター適合性は未確認です。');};
+// Kiri's public frame API dispatches {load:url} to an STL fetch when ".stl"
+// appears in the URL (platform.load). Using a #model.stl fragment was unreliable
+// on some embedded browsers: make the *data URL's media-type parameter* contain
+// the .stl filename. This remains a valid fetchable data URL, requires no server,
+// and Kiri's loader recognizes it as STL.
+function stlDataUrl(buffer){
+ if(!(buffer instanceof ArrayBuffer)||buffer.byteLength<84)throw Error('STLのデータがありません');
+ if(buffer.byteLength>6*1024*1024)throw Error('モデルが大きすぎます。6MB以下のSTLで試すか「STLを保存」を利用してください。');
+ const bytes=new Uint8Array(buffer);
+ const header=new DataView(buffer);
+ const faces=header.getUint32(80,true);
+ if(!faces||faces*50+84!==buffer.byteLength)throw Error('バイナリSTLの面データが不正です');
+ const parts=[];
+ for(let pos=0;pos<bytes.length;pos+=16384)parts.push(String.fromCharCode(...bytes.subarray(pos,pos+16384)));
+ return 'data:application/sla;name=manabi3d.stl;base64,'+btoa(parts.join(''));
+}
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function transfer(){
  if(!items.length){notify('まずCAD画面で図形を作成してください');return;}
- if(!kiriLoaded){pendingTransfer=true;try{await refreshSlicePreview(await toStlBuffer());}catch(e){notify('CADプレビュー失敗：'+e.message);}$('kiriStatus').textContent='Kiri:Moto起動後に自動転送を試します';return;}
- if(transferring)return;transferring=true;
+ if(!kiriLoaded){pendingTransfer=true;$('kiriStatus').textContent='Kiri起動中。読み込みを予約しました';$('kiriStatus').dataset.state='sending';
+  try{await refreshSlicePreview(await toStlBuffer());}catch(e){notify('CADプレビュー失敗：'+e.message);}return;
+ }
+ if(transferring)return;
+ transferring=true;
+ const sequence=++transferSequence;
  try{
-  $('kiriStatus').dataset.state='';$('kiriStatus').textContent='モデルの転送準備中';
+  $('kiriStatus').dataset.state='sending';
+  $('kiriStatus').textContent='CADからSTL生成中…';
   const data=await toStlBuffer();
   await refreshSlicePreview(data);
-  // The Kiri iframe STL `parse` handler is incompatible with the current STL parser.
-  // Its `load` handler uses the stable URL path, which can fetch an in-memory STL data URL.
-  // The #model.stl fragment selects STL parsing without altering the fetched bytes.
-  if(data.byteLength>8*1024*1024)throw Error('直接転送の上限は8MB。CADでSTL保存して小さいモデルに調整してください');
-  const bytes=new Uint8Array(data);let chunks=[];
-  for(let p=0;p<bytes.length;p+=32768){chunks.push(String.fromCharCode(...bytes.subarray(p,p+32768)));}
-  const url='data:application/octet-stream;base64,'+btoa(chunks.join(''))+'#model.stl';
-  chunks=[];
-  // Kiri:Moto's public frame reply currently omits the postMessage targetOrigin.
-  // On a cross-origin embedded frame, a missing acknowledgement is not evidence
-  // that the import failed. This version does not pretend to verify the load.
-  if(!sendKiri({mode:'FDM'})||!sendKiri({clear:true})||!sendKiri({load:url}))throw Error('Kiriへの送信要求に失敗しました');
-  $('kiriStatus').textContent='Kiriへの読み込み要求のみ送信（未確認）';
-  $('kiriStatus').dataset.state='';
-  notify('上のCADプレビューにモデルを表示しました。Kiriの画面にない場合は「STLを保存」してKiriからImportしてください。');
-  transferring=false;
- }catch(e){transferring=false;$('kiriStatus').dataset.state='error';$('kiriStatus').textContent='転送エラー';notify(`転送失敗：${e.message}`);}
+  const url=stlDataUrl(data);
+  if(sequence!==transferSequence)return;
+  // Loading the iframe is not the same as Kiri's JS being ready.
+  // The internal app initializes asynchronously on iPad / Chromebook.
+  const wait=Math.max(0,2300-(Date.now()-kiriLoadedAt));
+  if(wait)await sleep(wait);
+  if(sequence!==transferSequence)return;
+  $('kiriStatus').textContent='Kiriの印刷モードを設定中…';
+  if(!sendKiri({mode:'FDM'}))throw Error('印刷モードの設定要求を送れませんでした');
+  await sleep(420);
+  if(sequence!==transferSequence)return;
+  if(!sendKiri({clear:true}))throw Error('Kiriのモデル初期化要求を送れませんでした');
+  await sleep(180);
+  if(sequence!==transferSequence)return;
+  $('kiriStatus').textContent='KiriへSTLを送信中…';
+  if(!sendKiri({load:url}))throw Error('KiriにSTLの読み込み要求を送れませんでした');
+  $('kiriStatus').dataset.state='sent';
+  $('kiriStatus').textContent='STL送信済み ／ 下のKiri作業台でモデルを確認';
+  notify('CADモデルをKiriへ送信しました。下のKiri作業台に立体が表示されたら「Slice」を押せます。表示されない場合はKiri再起動かSTL保存を試してね。');
+ }catch(e){
+  if(sequence===transferSequence){$('kiriStatus').dataset.state='error';$('kiriStatus').textContent='転送要求に失敗';notify('転送失敗：'+(e.message||e));}
+ }finally{transferring=false;}
 }
+$('reloadKiri').onclick=()=>{
+ transferSequence++;transferring=false;pendingTransfer=items.length>0;
+ kiriLoaded=false;kiriLoadedAt=0;
+ $('kiriStatus').dataset.state='sending';
+ $('kiriStatus').textContent='Kiriを再起動中…';
+ // Reload the iframe without discarding the CAD or STL.
+ kiri.src='https://grid.space/kiri/?manabi_reopen='+Date.now();
+ notify('Kiri:Motoを再起動しています。CADモデルは再送信します。');
+};
 // Known-good URL from the upstream Kiri:Moto engine demonstration.
 // This tests whether the iframe accepts basic parent instructions, independently
 // of our STL data: URL serialization. Visual verification is necessary.

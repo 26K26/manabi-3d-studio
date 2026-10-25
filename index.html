@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>まなび3D Studio — v0.5.0（実験）Kiri同一配信元版</title>
+<title>まなび3D Studio — v0.5.1（実験）同一タブKiri切替版</title>
 <style>
 :root{font-family:system-ui,-apple-system,"Noto Sans JP",sans-serif;background:#0b1120;color:#eef3ff;--line:#2a3852;--muted:#a7b6ce;--panel:#101b30;--accent:#78baff}*{box-sizing:border-box}
 body{margin:0}button,select,input{font:inherit}button{background:#203452;color:#f3f8ff;border:1px solid #45617e;border-radius:9px;padding:9px 12px;cursor:pointer}button:hover{background:#2d496e}button:disabled{opacity:.42;cursor:not-allowed}button.primary{background:#175c9c;border-color:#3997ee;font-weight:700}button.danger{color:#ffb9b6;border-color:#765352}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid #89caff;outline-offset:2px}
@@ -119,12 +119,13 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","three-bvh-csg":"https://esm.sh/three-bvh-csg@0.0.18?external=three"}}
 </script>
+<script src="/manabi-3d-studio/kiri-local/bridge.js"></script>
 </head>
 <body>
 <header>
  <strong>◇ まなび3D Studio</strong><small>CAD × Kiri:Moto</small>
  <nav class="tabs" aria-label="機能切替"><button id="tabCad" class="active" aria-current="page">① CAD</button><button id="tabSlice">② スライス</button></nav>
- <span class="grow"></span><span class="tag">内蔵Kiri実験 v0.5.0</span>
+ <span class="grow"></span><span class="tag">Kiri全画面連携実験 v0.5.1</span>
 </header>
 <div id="root">
 <section id="cadPage" class="page active" aria-label="CAD編集">
@@ -196,7 +197,7 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
      <div class="previewViewport" id="previewViewport"><canvas id="previewCanvas" aria-label="転送前のCADモデル"></canvas></div>
      <div class="previewActions"><span id="previewResult">CADのモデルをここで確認できます（Kiriへの読み込みとは別です）</span><button id="exportForKiri" type="button">STLを保存</button><button id="toggleKiri" type="button">Kiriを広く表示</button></div>
    </div>
-   <iframe id="kiri" src="./kiri-local/kiri/" title="Kiri:Moto スライサー" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+   <iframe id="kiri" src="about:blank" title="Kiri:Moto スライサー" referrerpolicy="strict-origin-when-cross-origin"></iframe>
   </div>
   <aside id="sliceTips">
    <h2>印刷前の設定</h2>
@@ -929,9 +930,41 @@ $('loadProject').onclick=()=>$('projectFile').click();$('projectFile').onchange=
 $('openStl').onclick=()=>$('stlFile').click();$('stlFile').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{if(f.size>12*1024*1024)throw Error('試作版の読み込み上限は12MB');const buffer=await f.arrayBuffer();const geom=new STLLoader().parse(buffer);const attr=geom.getAttribute('position');if(!attr||attr.count<3||attr.count>1000000)throw Error('三角形数が大きすぎるか、STLが不正です');const mesh=geom.index?geom.toNonIndexed():geom;mesh.computeBoundingBox();const bb=mesh.boundingBox;const dx=bb.max.x-bb.min.x,dy=bb.max.y-bb.min.y,dz=bb.max.z-bb.min.z;if(Math.min(dx,dy,dz)<=0)throw Error('厚みがないSTLは読み込めません');mesh.translate(-(bb.min.x+bb.max.x)/2,-(bb.min.y+bb.max.y)/2,-bb.min.z);
  const vertices=Array.from(mesh.getAttribute('position').array);const rec={id:newId(),type:'imported',name:f.name,w:dx,d:dy,h:dz,baseW:dx,baseD:dy,baseH:dz,x:0,y:0,z:0,angle:0,vertices};undoSnapshot();addRec(rec);autosave();notify(`${f.name}を読み込みました（完成形状として編集）`);
  }catch(err){notify(`STL読込失敗：${err.message}`);}finally{e.target.value='';}};
-// Keep the iframe mounted when switching tabs, so Kiri:Moto workspace is not reset.
+// Full-page Kiri runs in the SAME TAB after the CAD state is saved locally.
+// Keeping the embedded Kiri alive beside WebGL CAD strained WebKit/iPad memory.
+// No STL file upload/download: binary STL is passed through same-origin storage.
+let enteringFullPageKiri=false;
+async function enterFullPageKiri(){
+ if(enteringFullPageKiri)return;
+ if(!items.length){notify('まずCAD画面で図形を作ってください');return;}
+ enteringFullPageKiri=true;
+ try{
+  if(!window.ManabiKiriBridge)throw Error('内蔵Kiriの受け渡しプログラムを読み込めません');
+  // Persist a full editable CAD document before unloading the WebGL scene.
+  // Do not navigate if this fails: the user's design must not be lost.
+  const draft=JSON.stringify(documentData());
+  if(draft.length>2500000)throw Error('作品の編集データが大きすぎます。まず編集データを保存してください。');
+  localStorage.setItem('manabi3d-cad-draft-v1',draft);
+  notify('モデルをKiriへ直接渡す準備中…');
+  const buffer=await toStlBuffer();
+  await window.ManabiKiriBridge.stage(buffer,{
+   bedX:Number($('bedX').value)||180,
+   bedY:Number($('bedY').value)||180,
+   bedZ:Number($('bedZ').value)||180,
+   height:Number($('layerHeight').value)||.2
+  });
+  // First-party full-page Kiri. Its main workers don't compete with CAD's
+  // Three.js WebGL scene and are no longer inside an iframe.
+  location.assign('/manabi-3d-studio/kiri-local/kiri/?manabi=1');
+ }catch(e){
+  enteringFullPageKiri=false;
+  notify('スライス画面への移動に失敗：'+(e.message||e));
+  console.error('Manabi full-screen Kiri bridge',e);
+ }
+}
+// Legacy setTab kept for CAD layout state; Kiri now launches as a route.
 function setTab(to){if(to!=='cad'&&(armedShape||placing))cancelPlacement();for(const [id,active] of [['cadPage',to==='cad'],['slicePage',to==='slice']])$(id).classList.toggle('active',active);$('tabCad').classList.toggle('active',to==='cad');$('tabSlice').classList.toggle('active',to==='slice');$('tabCad').setAttribute('aria-current',to==='cad'?'page':'false');$('tabSlice').setAttribute('aria-current',to==='slice'?'page':'false');if(to==='cad')requestAnimationFrame(resize);updateResizeHandles();}
-$('tabCad').onclick=()=>setTab('cad');$('tabSlice').onclick=()=>{setTab('slice');if(items.length)toStlBuffer().then(refreshSlicePreview).catch(e=>notify('CADプレビュー失敗：'+e.message));};$('backCad').onclick=()=>setTab('cad');$('propsToggle').onclick=()=>$('props').classList.toggle('is-hidden');
+$('tabCad').onclick=()=>setTab('cad');$('tabSlice').onclick=enterFullPageKiri;$('backCad').onclick=()=>setTab('cad');$('propsToggle').onclick=()=>$('props').classList.toggle('is-hidden');
 // Printer profiles: only geometry envelope and UI defaults. Never assume firmware/G-code compatibility.
 function profile(){return PROFILES[$('printer').value]||PROFILES.generic;}
 function onProfile(){const p=profile();$('bedX').value=p.bed.x;$('bedY').value=p.bed.y;$('bedZ').value=p.bed.z;$('printerNozzle').value=String(p.nozzle);$('printerInfo').textContent=`${p.label} / ${p.bed.x} × ${p.bed.y} × ${p.bed.z} mm / 出力アダプター未検証`;notify('プロファイルを選択しました。実機互換性はまだ未検証です。');}
@@ -1054,7 +1087,7 @@ $('testKiri').onclick=()=>{
  $('kiriStatus').textContent='サンプル立方体の読込要求を送信（画面で確認）';$('kiriStatus').dataset.state='';
  notify('Kiri画面にサンプル立方体が出るか確認してください。出なければKiriの埋め込み連携が動作していません。');
 };
-$('sendToKiri').onclick=transfer;$('toSlice').onclick=()=>{setTab('slice');transfer();};
+$('sendToKiri').onclick=transfer;$('toSlice').onclick=enterFullPageKiri;
 // Restore small drafts. No account and no server. Save explicit project files for long-term work.
 try{const saved=localStorage.getItem('manabi3d-cad-draft-v1');if(saved){loadProjectString(saved);notify('このブラウザの前回の編集内容を復元しました');}else{notify('準備完了。図形を追加して始めよう。');}}catch(e){notify('ブラウザの保存データは使用できません。手動保存は可能です。');}
 window.__manabiCadReady=true;

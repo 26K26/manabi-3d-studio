@@ -51,6 +51,15 @@ sync=sync.replace(before,`    // Embedded WebKit: avoid eager 4-minion pool; cor
     const safariLike = /AppleWebKit/i.test(navigator.userAgent) && !/Chrom(?:e|ium)|Edg/i.test(navigator.userAgent);
     preferences.setThreaded(!safariLike);`);
 fs.writeFileSync(syncName,sync);
+// Kiri's worker-side parallel queue uses 'concurrent' even when the
+// optional minion pool has been disabled! Without this change WebKit may
+// enqueue slicing tasks to minions that never start, leaving progress at 0%.
+const workName=path.join(upstream,'src/kiri/run/worker.js');
+let work=fs.readFileSync(workName,'utf8');
+const oldConcurrent='concurrent = Math.round(Math.max(4, self.Worker && ccvalue > 3 ? ccvalue * 0.75 : 0)),';
+if(work.split(oldConcurrent).length!==2)throw Error('Kiri worker parallelism expression changed');
+work=work.replace(oldConcurrent,`concurrent = (/AppleWebKit/i.test(self.navigator?.userAgent||'') && !/Chrom(?:e|ium)|Edg/i.test(self.navigator?.userAgent||'')) ? 1 : Math.round(Math.max(4, self.Worker && ccvalue > 3 ? ccvalue * 0.75 : 0)),`);
+fs.writeFileSync(workName,work);
 // OPFS is optional for slicing. Some WebKit contexts reject
 // navigator.storage.getDirectory() with UnknownError at module startup,
 // preventing Kiri's entire UI from initializing. Catch it explicitly.

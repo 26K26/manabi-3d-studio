@@ -83,6 +83,36 @@ work=work.replace(sliceReject,`            if (concurrent < 2) {
                 }).then(() => resolve(recs)).catch(reject);
                 return;
             }`);
+// Kiri's polygon-clipping stage also requires a minion by default.
+// Implement the same Clipper intersection directly in the core worker.
+if(!work.includes("import '../../add/array.js';"))throw Error('Main worker imports changed');
+work=work.replace("import '../../add/array.js';","import '../../ext/clip2.js';\nimport '../../add/array.js';");
+const clipReject=`            if (concurrent < 2) {
+                reject("concurrent clip unavailable");
+            }`;
+if(work.split(clipReject).length!==2)throw Error('Upstream clip rejection guard changed');
+work=work.replace(clipReject,`            if (concurrent < 2) {
+                try {
+                    const CL = self.ClipperLib;
+                    const clip = new CL.Clipper();
+                    const tree = new CL.PolyTree();
+                    const scale = base.config.clipper;
+                    const asPath = array => array.map(p => ({X:p.x*scale,Y:p.y*scale}));
+                    clip.AddPaths(lines.map(asPath),CL.PolyType.ptSubject,false);
+                    clip.AddPaths(POLY.flatten(polys).map(p=>asPath(p.points)),CL.PolyType.ptClip,true);
+                    let result = [];
+                    if (clip.Execute(CL.ClipType.ctIntersection,tree,CL.PolyFillType.pftNonZero,CL.PolyFillType.pftEvenOdd)) {
+                        result = tree.m_AllPolys.map(node=>POLY.fromClipperNode(node,slice.z));
+                    }
+                    for (const top of slice.tops) {
+                        for (const poly of result) {
+                            if (poly.isInside(top.poly)) top.fill_sparse.push(poly);
+                        }
+                    }
+                    resolve(result);
+                } catch(err) { reject(err); }
+                return;
+            }`);
 fs.writeFileSync(workName,work);
 // OPFS is optional for slicing. Some WebKit contexts reject
 // navigator.storage.getDirectory() with UnknownError at module startup,

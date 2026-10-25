@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>まなび3D Studio — v0.4.5 範囲選択・穴あけ版</title>
+<title>まなび3D Studio — v0.4.6 文字・転送改善版</title>
 <style>
 :root{font-family:system-ui,-apple-system,"Noto Sans JP",sans-serif;background:#0b1120;color:#eef3ff;--line:#2a3852;--muted:#a7b6ce;--panel:#101b30;--accent:#78baff}*{box-sizing:border-box}
 body{margin:0}button,select,input{font:inherit}button{background:#203452;color:#f3f8ff;border:1px solid #45617e;border-radius:9px;padding:9px 12px;cursor:pointer}button:hover{background:#2d496e}button:disabled{opacity:.42;cursor:not-allowed}button.primary{background:#175c9c;border-color:#3997ee;font-weight:700}button.danger{color:#ffb9b6;border-color:#765352}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid #89caff;outline-offset:2px}
@@ -86,6 +86,24 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
 #combineTop:disabled,#applyBoolean:disabled{opacity:.42}
 #booleanTools{margin-top:10px}
 #selectionInfo{padding:7px 0;line-height:1.5}
+
+#textEditPanel{border:1px solid #b6d9f8;border-radius:9px;background:#f2f8ff;padding:10px 8px;margin-top:12px}
+#textEditPanel h3{margin:1px 0 7px}
+#textContent{display:block;width:100%;background:white;color:#243548;border:1px solid #97b8d8;padding:10px;border-radius:7px;font-size:16px;margin-top:6px}
+.textFieldLabel{font-size:12px;color:#365678}
+#sliceViewer{position:relative;display:flex;flex:1;min-width:0;min-height:0;flex-direction:column}
+#slicePreviewPanel{height:218px;flex-shrink:0;display:flex;flex-direction:column;background:white;border-bottom:1px solid #cad8e6;min-width:0}
+#slicePreviewPanel.collapsed{height:42px}
+#slicePreviewPanel.collapsed .previewViewport,#slicePreviewPanel.collapsed .previewActions{display:none}
+.previewHeader{height:29px;display:flex;justify-content:space-between;align-items:center;padding:3px 12px;background:#eaf3fb;font-size:12px;color:#295072}
+.previewHeader span{font-size:11px;color:#536a80}
+.previewViewport{flex:1;min-height:0;position:relative;touch-action:pan-x pan-y}
+#previewCanvas{width:100%;height:100%;display:block}
+.previewActions{min-height:42px;display:flex;align-items:center;padding:3px 7px;gap:8px;flex-wrap:wrap;font-size:11px;color:#445874}
+.previewActions span{flex:1}
+.previewActions button{font-size:11px;padding:6px 8px;white-space:nowrap}
+#sliceViewer #kiri{flex:1;height:0;min-height:180px}
+@media(max-width:690px){#sliceViewer{min-height:0;flex:1}#slicePreviewPanel{height:170px}#sliceViewer #kiri{flex:1;min-height:240px}}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","three-bvh-csg":"https://esm.sh/three-bvh-csg@0.0.18?external=three"}}
@@ -95,7 +113,7 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
 <header>
  <strong>◇ まなび3D Studio</strong><small>CAD × Kiri:Moto</small>
  <nav class="tabs" aria-label="機能切替"><button id="tabCad" class="active" aria-current="page">① CAD</button><button id="tabSlice">② スライス</button></nav>
- <span class="grow"></span><span class="tag">範囲選択・穴あけ v0.4.5</span>
+ <span class="grow"></span><span class="tag">文字ツール・転送検証 v0.4.6</span>
 </header>
 <div id="root">
 <section id="cadPage" class="page active" aria-label="CAD編集">
@@ -131,12 +149,14 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
      <button type="button" draggable="false" data-shape="hex"><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M10 8 20 3 30 8 34 17 30 27 20 33 10 27 6 17Z" fill="#d1e8fa"/><path d="M6 17V25L10 33 20 38 30 33 34 25V17M10 8 20 3 30 8 34 17 30 27 20 33 10 27 6 17Z" fill="none" stroke="#3378bb" stroke-width="1.7"/></svg><span>六角柱</span></button>
      <button type="button" draggable="false" data-shape="tube"><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M7 12V29C7 37 33 37 33 29V12" fill="#b5dffc"/><ellipse cx="20" cy="12" rx="13" ry="6" fill="#ecf8ff"/><ellipse cx="20" cy="12" rx="6" ry="2.8" fill="#718caa"/><path d="M7 12V29C7 37 33 37 33 29V12M7 12C7 4 33 4 33 12S7 20 7 12" fill="none" stroke="#3378bb" stroke-width="1.6"/></svg><span>パイプ</span></button>
      <button type="button" draggable="false" data-shape="torus"><svg viewBox="0 0 40 40" aria-hidden="true"><ellipse cx="20" cy="20" rx="17" ry="12" fill="#b5dffc"/><ellipse cx="20" cy="20" rx="7" ry="4.5" fill="#fff"/><path d="M3 20A17 12 0 1 0 37 20A17 12 0 1 0 3 20M13 20A7 4.5 0 1 0 27 20A7 4.5 0 1 0 13 20" fill="none" stroke="#3378bb" stroke-width="1.7"/></svg><span>リング</span></button>
+     <button type="button" draggable="false" data-shape="text" aria-label="立体文字を配置"><span class="symbol" aria-hidden="true" style="font-weight:800;font-size:29px;">あA</span><span>文字</span></button>
     </div>
    </div>
    <div id="editPanel">
    <h2>図形の編集</h2><div id="selectionInfo" role="status">図形を選択してください。</div>
    <div id="booleanTools"><button id="holeToggle" type="button" title="選択した図形を切り抜き用の穴にする">◌ 穴にする</button><button id="applyBoolean" type="button" disabled title="選択した実体を結合し、選択した穴を差し引く">🔗 選択図形を結合</button></div>
    <div id="propertyFields" hidden>
+    <div id="textEditPanel" hidden><h3>文字（立体テキスト）</h3><label for="textContent" class="textFieldLabel">作品に入れる文字（20文字以内）</label><input id="textContent" type="text" maxlength="20" value="名前" placeholder="例：さくら、ABC、3年" autocomplete="off"><p class="hint">文字も実体・穴として扱えます。文字を置いた後に変更できます。長い文字は幅を調整してね。</p></div>
     <h3>大きさ (mm)</h3><div class="labels"><span>幅 X</span><span>奥行 Y</span><span>高さ Z</span></div><div class="triple"><input id="dimX" type="number" min="0.1" max="500" step="0.5" aria-label="幅 X"><input id="dimY" type="number" min="0.1" max="500" step="0.5" aria-label="奥行 Y"><input id="dimZ" type="number" min="0.1" max="500" step="0.5" aria-label="高さ Z"></div>
     <h3>配置 (mm)</h3><div class="labels"><span>X</span><span>Y</span><span>Z（底面）</span></div><div class="triple"><input id="posX" type="number" step="1" aria-label="位置 X"><input id="posY" type="number" step="1" aria-label="位置 Y"><input id="posZ" type="number" step="1" aria-label="位置 Z"></div>
     <div class="control"><label for="angle">Z回転 (°)</label><input id="angle" type="number" step="5" value="0"></div>
@@ -156,17 +176,25 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
   <button id="backCad">← CADへ</button>
   <label for="printer">プリンター</label><select id="printer"><option value="a1mini">Bambu Lab A1 mini（参考）</option><option value="generic">汎用FDM（例）</option><option value="custom">カスタム（仮）</option></select>
   <label for="printerNozzle">ノズル</label><select id="printerNozzle"><option value="0.4">0.4mm</option><option value="0.6">0.6mm</option><option value="0.2">0.2mm</option></select>
-  <button id="sendToKiri" class="primary">CADモデルを転送</button><span id="kiriStatus" role="status">Kiri:Motoを読み込み中</span>
+  <button id="sendToKiri" class="primary">Kiriに転送を試す</button><span id="kiriStatus" role="status">Kiri:Motoを読み込み中</span>
  </div>
  <div id="sliceBody">
-  <iframe id="kiri" src="https://grid.space/kiri/" title="Kiri:Moto スライサー" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+  <div id="sliceViewer">
+   <div id="slicePreviewPanel" aria-label="CADモデルの確認プレビュー">
+     <div class="previewHeader"><strong>CADモデルの確認</strong><span id="previewDimensions">未準備</span></div>
+     <div class="previewViewport" id="previewViewport"><canvas id="previewCanvas" aria-label="転送前のCADモデル"></canvas></div>
+     <div class="previewActions"><span id="previewResult">CADのモデルをここで確認できます（Kiriへの読み込みとは別です）</span><button id="exportForKiri" type="button">STLを保存</button><button id="toggleKiri" type="button">Kiriを広く表示</button></div>
+   </div>
+   <iframe id="kiri" src="https://grid.space/kiri/" title="Kiri:Moto スライサー" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+  </div>
   <aside id="sliceTips">
    <h2>印刷前の設定</h2>
    <p id="printerInfo">A1 mini / 180 × 180 × 180 mm</p>
    <div class="fieldPair"><label>造形幅 X (mm)<input id="bedX" type="number" min="1" max="1000" step="1" value="180"></label><label>奥行 Y (mm)<input id="bedY" type="number" min="1" max="1000" step="1" value="180"></label><label>高さ Z (mm)<input id="bedZ" type="number" min="1" max="1000" step="1" value="180"></label><label>積層高さ (mm)<input id="layerHeight" type="number" min="0.04" max="1" step="0.04" value="0.2"></label></div>
    <button id="applyPrinter" style="width:100%;margin-top:9px">Kiriにサイズと積層設定を送信</button>
    <h2>CAD → Kiri の転送確認</h2>
-   <p>CAD画面の「スライスへ」で転送要求を送ります。<strong>転送要求を送れたことと、Kiriが読み込んだことは別です。</strong>画面中央のKiriにモデルが表示されたか、目で確認してください。</p>
+   <p><strong>上のCADプレビューは確実に確認できますが、Kiriのモデル一覧に表示されるまでは転送成功ではありません。</strong> 現在、外部埋め込みの連携は未解決です。</p>
+   <p>直接転送ができない場合は「STLを保存」→ Kiri:Motoの「Import」でそのSTLを読み込めます。手動での取り込みが必要な点は今後改善します。</p>
    <button id="testKiri" style="width:100%;margin-top:4px">接続診断：Kiri公式の立方体を読み込む</button>
    <p>① 上のボタンでKiriに立方体が出るか確認。② 出たら「CADモデルを転送」で自分のモデルを試す。<br>公式の立方体も出ない場合は、外部からの操作メッセージが処理されていません。公式の立方体は出るのにCADモデルが出ない場合は、STLを渡す形式が原因の可能性があります。</p>
    <p>ファイルの書き出しは、右ではなく左側のKiri:Moto画面内にある出力操作で端末に保存します。プリンター用出力形式は機種に応じて今後対応します。</p>
@@ -214,9 +242,86 @@ $('modeMove').onclick=()=>setMode('translate');$('modeScale').onclick=()=>setMod
 const items=[];let currentId=null;let uid=0;const undo=[];const selectedIds=new Set();let rangeSelectActive=false;
 const selectInputs=['dimX','dimY','dimZ','posX','posY','posZ','angle'];
 const newId=()=>`shape_${Date.now().toString(36)}_${++uid}`;
-function defaultRec(type){const names={box:'ボックス',cylinder:'円柱',sphere:'球',cone:'円すい',roof:'屋根',hex:'六角柱',tube:'パイプ',torus:'リング'};return {id:newId(),type,name:names[type]||'図形',w:25,d:25,h:25,x:0,y:0,z:0,angle:0,hole:false};}
+function defaultRec(type){const names={box:'ボックス',cylinder:'円柱',sphere:'球',cone:'円すい',roof:'屋根',hex:'六角柱',tube:'パイプ',torus:'リング',text:'文字'};return {id:newId(),type,name:names[type]||'図形',w:type==='text'?56:25,d:type==='text'?16:25,h:type==='text'?3:25,x:0,y:0,z:0,angle:0,hole:false,...(type==='text'?{text:'名前'}:{})};}
+
+// 文字を端末の日本語フォントからオフライン形状化する。Canvas raster → 境界線 → 閉じた押し出し形状。
+// 同梱フォントなしで、日本語・英数字をiPad / Chromebookで立体化できる。
+const textShapeCache=new Map();
+function buildTextGeometry(rec){
+ const content=String(rec.text||'名前').slice(0,20).trim()||'名前';
+ const key=content+'|'+rec.w+'|'+rec.d+'|'+rec.h;
+ if(textShapeCache.has(key))return textShapeCache.get(key).clone();
+ const c=document.createElement('canvas'),ctx=c.getContext('2d',{willReadFrequently:true});
+ if(!ctx)throw Error('ブラウザの文字描画機能が使用できません');
+ const fontsize=78;
+ ctx.font=`700 ${fontsize}px system-ui, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif`;
+ const txtWidth=Math.ceil(ctx.measureText(content).width);
+ if(txtWidth>2500)throw Error('文字が長すぎます（20文字以内にしてください）');
+ c.width=Math.min(2500,txtWidth+24);c.height=112;
+ ctx.clearRect(0,0,c.width,c.height);
+ ctx.font=`700 ${fontsize}px system-ui, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif`;
+ ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.fillStyle='#000';ctx.fillText(content,12,86);
+ const w=c.width,h=c.height,rgba=ctx.getImageData(0,0,w,h).data;
+ let minx=w,miny=h,maxx=0,maxy=0;
+ const mask=new Uint8Array(w*h);
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  if(rgba[(y*w+x)*4+3]>=120){mask[y*w+x]=1;if(x<minx)minx=x;if(x>maxx)maxx=x;if(y<miny)miny=y;if(y>maxy)maxy=y;}
+ }
+ if(minx>maxx||miny>maxy)throw Error('文字を描画できませんでした');
+ const ox=Math.max(0,minx-1),oy=Math.max(0,miny-1),mw=Math.min(w,maxx+2)-ox,mh=Math.min(h,maxy+2)-oy;
+ const edges=new Map();
+ const add=(x0,y0,x1,y1)=>{const k=x0+','+y0;let a=edges.get(k);if(!a)edges.set(k,a=[]);a.push([x1,y1]);};
+ const filled=(x,y)=>x>=0&&y>=0&&x<mw&&y<mh&&!!mask[(y+oy)*w+x+ox];
+ for(let y=0;y<mh;y++)for(let x=0;x<mw;x++)if(filled(x,y)){
+   if(!filled(x,y-1))add(x,y,x+1,y);
+   if(!filled(x+1,y))add(x+1,y,x+1,y+1);
+   if(!filled(x,y+1))add(x+1,y+1,x,y+1);
+   if(!filled(x-1,y))add(x,y+1,x,y);
+ }
+ const loops=[];let edgeCount=0;for(const a of edges.values())edgeCount+=a.length;
+ while(edgeCount){
+  const start=edges.keys().next().value;if(!start)break;
+  const pts=[];let k=start,step=0;
+  while(step++<60000){
+   const ar=edges.get(k);if(!ar?.length)break;
+   const [nx,ny]=ar.pop();edgeCount--;if(!ar.length)edges.delete(k);
+   const [x,y]=k.split(',').map(Number);pts.push([x,y]);k=nx+','+ny;
+   if(k===start)break;
+  }
+  if(k!==start||pts.length<4)continue;
+  // simplify long straight runs, preserving pixel-outline accuracy.
+  const simp=[];
+  for(let i=0;i<pts.length;i++){
+   const a=pts[(i+pts.length-1)%pts.length],b=pts[i],d=pts[(i+1)%pts.length];
+   if((b[0]-a[0])*(d[1]-b[1])===(b[1]-a[1])*(d[0]-b[0]))continue;
+   simp.push(b);
+  }
+  if(simp.length<3)continue;
+  let area=0;for(let i=0;i<simp.length;i++){const a=simp[i],b=simp[(i+1)%simp.length];area+=a[0]*b[1]-b[0]*a[1];}
+  if(Math.abs(area)>=2)loops.push({pts:simp,area:area/2});
+ }
+ const outer=loops.filter(l=>l.area>0).sort((a,b)=>b.area-a.area);
+ const holes=loops.filter(l=>l.area<0);
+ if(!outer.length)throw Error('文字の形状を生成できませんでした');
+ const X=x=>(x-mw/2)*rec.w/mw,Y=y=>(mh/2-y)*rec.d/mh;
+ const pathFrom=pts=>{
+  const p=new THREE.Path();p.moveTo(X(pts[0][0]),Y(pts[0][1]));
+  for(const [x,y] of pts.slice(1))p.lineTo(X(x),Y(y));p.closePath();return p;
+ };
+ function inside(point, poly){let v=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+  const a=poly[i],b=poly[j];if(((a[1]>point[1])!==(b[1]>point[1]))&&(point[0]<(b[0]-a[0])*(point[1]-a[1])/(b[1]-a[1])+a[0]))v=!v;
+ }return v;}
+ const shapes=outer.map(l=>{const s=new THREE.Shape();const p=pathFrom(l.pts);s.curves=p.curves;return {loop:l,shape:s};});
+ for(const hole of holes){const pt=hole.pts[0];const parent=shapes.filter(s=>inside(pt,s.loop.pts)).sort((a,b)=>a.loop.area-b.loop.area)[0];if(parent)parent.shape.holes.push(pathFrom(hole.pts));}
+ const geom=new THREE.ExtrudeGeometry(shapes.map(s=>s.shape),{depth:rec.h,steps:1,bevelEnabled:false,curveSegments:1});
+ geom.computeVertexNormals();
+ if(textShapeCache.size>20){for(const g of textShapeCache.values())g.dispose();textShapeCache.clear();}
+ textShapeCache.set(key,geom.clone());return geom;
+}
+
 function geometryOf(rec){let geom;
- if(rec.type==='box'){geom=new THREE.BoxGeometry(rec.w,rec.d,rec.h);geom.translate(0,0,rec.h/2);}
+ if(rec.type==='text'){geom=buildTextGeometry(rec);}
+ else if(rec.type==='box'){geom=new THREE.BoxGeometry(rec.w,rec.d,rec.h);geom.translate(0,0,rec.h/2);}
  else if(rec.type==='cylinder'){geom=new THREE.CylinderGeometry(.5,.5,1,48);geom.rotateX(Math.PI/2);geom.scale(rec.w,rec.d,rec.h);geom.translate(0,0,rec.h/2);}
  else if(rec.type==='sphere'){geom=new THREE.SphereGeometry(1,32,20);geom.scale(rec.w/2,rec.d/2,rec.h/2);geom.translate(0,0,rec.h/2);}
  else if(rec.type==='cone'){geom=new THREE.CylinderGeometry(0,.5,1,48);geom.rotateX(Math.PI/2);geom.scale(rec.w,rec.d,rec.h);geom.translate(0,0,rec.h/2);}
@@ -242,6 +347,7 @@ function setSelection(ids){
  }
  const single=picked.length===1?picked[0]:null;
  $('propertyFields').hidden=!single;
+ $('textEditPanel').hidden=single?.type!=='text';if(single?.type==='text')$('textContent').value=single.text||'名前';
  const solidCount=picked.filter(i=>!i.hole).length,holeCount=picked.length-solidCount;
  $('selectionInfo').textContent=!picked.length?'図形を選択してください。':single?`${single.name}（${single.hole?'穴（切り抜き用）':'実体'}）`:`${picked.length}個を選択中（実体 ${solidCount}・穴 ${holeCount}）`;
  if(single){const values={dimX:single.w,dimY:single.d,dimZ:single.h,posX:single.x,posY:single.y,posZ:single.z,angle:single.angle};for(const id of selectInputs)$(id).value=Number(values[id].toFixed(3));}
@@ -405,6 +511,7 @@ function frameSelected(){const it=selected();if(!it){notify('図形を選択し�
 $('focusSelected').onclick=frameSelected;
 // Placement controls are wired after raycaster initialization below.
 $('remove').onclick=()=>{const it=selected();if(!it)return;undoSnapshot();scene.remove(it.mesh);it.mesh.geometry.dispose();it.mesh.material.dispose();items.splice(items.indexOf(it),1);setSelected(null);$('emptyHelp').hidden=!!items.length;renderShapeList();autosave();notify('図形を削除しました');};
+$('textContent').addEventListener('change',()=>{const it=selected();if(!it||it.type!=='text')return;const value=$('textContent').value.trim().slice(0,20);if(!value){$('textContent').value=it.text;notify('文字を1文字以上入力してください');return;}undoSnapshot();it.text=value;it.name=`文字「${value}」`;applyRec(it);setSelected(it.id);autosave();notify(`「${value}」を立体文字に更新しました`);});
 $('duplicate').onclick=()=>{const it=selected();if(!it)return;undoSnapshot();const c=serializeRec(it);c.id=newId();c.x+=15;c.y+=15;c.name+='（複製）';addRec(c);autosave();notify('図形を複製しました');};
 const ray=new THREE.Raycaster();const cursor=new THREE.Vector2();let pointerDown;
 
@@ -427,7 +534,7 @@ function refreshPlacementUI(){
   ? `「${defaultRecLabel(armedShape)}」を配置中：作業面でタップ、またはドラッグして幅・奥行きを決めてね。（Escで解除）`
   : '① 実体/穴を選ぶ → ② ドラッグで配置。またはタップ後、作業面で幅・奥行きを指定。';
 }
-function defaultRecLabel(type){return {box:'ボックス',cylinder:'円柱',sphere:'球',cone:'円すい',roof:'屋根',hex:'六角柱',tube:'パイプ',torus:'リング'}[type]||'図形';}
+function defaultRecLabel(type){return {box:'ボックス',cylinder:'円柱',sphere:'球',cone:'円すい',roof:'屋根',hex:'六角柱',tube:'パイプ',torus:'リング',text:'文字'}[type]||'図形';}
 $('roleSolid').addEventListener('click',()=>{newShapeRole='solid';refreshPlacementUI();notify('通常の立体を配置するモード');});
 $('roleHole').addEventListener('click',()=>{newShapeRole='hole';refreshPlacementUI();notify('穴モード：切り抜き用の半透明な図形を置いて、結合・切り抜きを押してね');});
 function discardGhost(){
@@ -564,7 +671,7 @@ function finishPlace(x,y){
  addRec(p.rec);
  autosave();
  armedShape=null;refreshPlacementUI();
- notify(`${p.rec.name}を${p.role==='hole'?'切り抜き用の穴':'実体'}として配置：幅${p.rec.w} × 奥行${p.rec.d} × 高さ${p.rec.h} mm。寸法ラベルから数値で調整できます。`);
+ notify(p.type==='text'?'文字を配置しました。右側の「文字」欄に名前を入力してね。':`${p.rec.name}を${p.role==='hole'?'切り抜き用の穴':'実体'}として配置：幅${p.rec.w} × 奥行${p.rec.d} × 高さ${p.rec.h} mm。寸法ラベルから数値で調整できます。`);
 }
 const paletteGestures=new Map();
 for(const button of paletteButtons){
@@ -770,7 +877,7 @@ $('combineTop').onclick=combineSelection;
 $('saveStl').onclick=async()=>{try{const stl=await toStlBuffer();download(stl,'manabi3d-model.stl','model/stl');notify('結合・穴あけを反映したSTLを端末に保存しました');}catch(e){notify(`STL保存失敗：${e.message}`);}};
 $('saveProject').onclick=()=>{download(JSON.stringify(documentData(),null,2),'manabi3d-project.m3d.json','application/json');notify('再編集用プロジェクトを端末に保存しました');};
 function validateProject(raw){const doc=JSON.parse(raw);if(doc.schema!=='manabi3d-project'||doc.version!==1||!Array.isArray(doc.items)||doc.items.length>150)throw Error('このバージョンで読み込めない編集データです');
- const result=[];for(const old of doc.items){const type=old.type;if(!['box','cylinder','sphere','cone','roof','hex','tube','torus','imported'].includes(type))throw Error('未対応の図形です');const rec={id:newId(),type,name:String(old.name||type).slice(0,60),w:Number(old.w),d:Number(old.d),h:Number(old.h),x:Number(old.x),y:Number(old.y),z:Number(old.z),angle:Number(old.angle),hole:!!old.hole};
+ const result=[];for(const old of doc.items){const type=old.type;if(!['box','cylinder','sphere','cone','roof','hex','tube','torus','text','imported'].includes(type))throw Error('未対応の図形です');const rec={id:newId(),type,name:String(old.name||type).slice(0,60),w:Number(old.w),d:Number(old.d),h:Number(old.h),x:Number(old.x),y:Number(old.y),z:Number(old.z),angle:Number(old.angle),hole:!!old.hole,...(type==='text'?{text:String(old.text||'名前').slice(0,20)}:{})};
  if([rec.w,rec.d,rec.h].some(v=>!Number.isFinite(v)||v<=0||v>1000)||[rec.x,rec.y,rec.z,rec.angle].some(v=>!Number.isFinite(v)||Math.abs(v)>10000))throw Error('数値に不正があります');if(type==='imported'){if(!Array.isArray(old.vertices)||old.vertices.length>3000000||old.vertices.length%9!==0||old.vertices.some(v=>!Number.isFinite(v)))throw Error('STL形状が不正です');rec.vertices=old.vertices;rec.baseW=Number(old.baseW);rec.baseD=Number(old.baseD);rec.baseH=Number(old.baseH);if([rec.baseW,rec.baseD,rec.baseH].some(v=>!Number.isFinite(v)||v<=0))throw Error('元の寸法が不正です');}result.push(rec);}return result;}
 function loadProjectString(raw){const recs=validateProject(raw);removeAll();for(const rec of recs)addRec(rec,false);setSelected(recs.at(-1)?.id||null);$('emptyHelp').hidden=!!items.length;autosave();notify(`${recs.length}個の図形を読み込みました`);}
 $('loadProject').onclick=()=>$('projectFile').click();$('projectFile').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{loadProjectString(await f.text());}catch(e){notify(`編集データ読込失敗：${e.message}`);}finally{e.target.value='';}};
@@ -779,10 +886,47 @@ $('openStl').onclick=()=>$('stlFile').click();$('stlFile').onchange=async e=>{co
  }catch(err){notify(`STL読込失敗：${err.message}`);}finally{e.target.value='';}};
 // Keep the iframe mounted when switching tabs, so Kiri:Moto workspace is not reset.
 function setTab(to){if(to!=='cad'&&(armedShape||placing))cancelPlacement();for(const [id,active] of [['cadPage',to==='cad'],['slicePage',to==='slice']])$(id).classList.toggle('active',active);$('tabCad').classList.toggle('active',to==='cad');$('tabSlice').classList.toggle('active',to==='slice');$('tabCad').setAttribute('aria-current',to==='cad'?'page':'false');$('tabSlice').setAttribute('aria-current',to==='slice'?'page':'false');if(to==='cad')requestAnimationFrame(resize);updateResizeHandles();}
-$('tabCad').onclick=()=>setTab('cad');$('tabSlice').onclick=()=>setTab('slice');$('backCad').onclick=()=>setTab('cad');$('propsToggle').onclick=()=>$('props').classList.toggle('is-hidden');
+$('tabCad').onclick=()=>setTab('cad');$('tabSlice').onclick=()=>{setTab('slice');if(items.length)toStlBuffer().then(refreshSlicePreview).catch(e=>notify('CADプレビュー失敗：'+e.message));};$('backCad').onclick=()=>setTab('cad');$('propsToggle').onclick=()=>$('props').classList.toggle('is-hidden');
 // Printer profiles: only geometry envelope and UI defaults. Never assume firmware/G-code compatibility.
 function profile(){return PROFILES[$('printer').value]||PROFILES.generic;}
 function onProfile(){const p=profile();$('bedX').value=p.bed.x;$('bedY').value=p.bed.y;$('bedZ').value=p.bed.z;$('printerNozzle').value=String(p.nozzle);$('printerInfo').textContent=`${p.label} / ${p.bed.x} × ${p.bed.y} × ${p.bed.z} mm / 出力アダプター未検証`;notify('プロファイルを選択しました。実機互換性はまだ未検証です。');}
+
+// Browser-native 3D preview of the exact STL destined for the slicer. Not a Kiri confirmation.
+let previewRenderer=null,previewScene=null,previewCamera=null,previewControl=null,previewMesh=null;
+function preparePreview(){
+ if(previewRenderer)return;
+ const canvas=$('previewCanvas');previewRenderer=new THREE.WebGLRenderer({canvas,antialias:true});previewRenderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
+ previewScene=new THREE.Scene();previewScene.background=new THREE.Color(0xf5faff);
+ previewCamera=new THREE.PerspectiveCamera(45,1,.1,5000);previewCamera.up.set(0,0,1);previewCamera.position.set(110,-145,120);
+ previewControl=new OrbitControls(previewCamera,canvas);previewControl.enableDamping=true;previewControl.target.set(0,0,12);
+ previewScene.add(new THREE.HemisphereLight(0xffffff,0xc8d9eb,2.3));
+ const key=new THREE.DirectionalLight(0xffffff,2.0);key.position.set(70,-90,180);previewScene.add(key);
+ const ground=new THREE.GridHelper(300,30,0xb3c6d8,0xe1ecf7);ground.rotation.x=Math.PI/2;previewScene.add(ground);
+ const frame=()=>{requestAnimationFrame(frame);if(!$('slicePage').classList.contains('active')||$('slicePreviewPanel').classList.contains('collapsed'))return;
+  const bounds=$('previewViewport').getBoundingClientRect();if(bounds.width<5||bounds.height<5)return;
+  if(canvas.width!==Math.floor(bounds.width*previewRenderer.getPixelRatio())||canvas.height!==Math.floor(bounds.height*previewRenderer.getPixelRatio())){
+   previewRenderer.setSize(bounds.width,bounds.height,false);previewCamera.aspect=bounds.width/bounds.height;previewCamera.updateProjectionMatrix();
+  }
+  previewControl.update();previewRenderer.render(previewScene,previewCamera);
+ };frame();
+}
+async function refreshSlicePreview(stl){
+ preparePreview();
+ if(previewMesh){previewScene.remove(previewMesh);previewMesh.geometry.dispose();previewMesh.material.dispose();previewMesh=null;}
+ const geo=new STLLoader().parse(stl);geo.computeVertexNormals();geo.computeBoundingBox();
+ const b=geo.boundingBox,size=b.getSize(new THREE.Vector3());
+ if(!geo.getAttribute('position')?.count)throw Error('スライスへ渡す形状が空です');
+ const centroid=b.getCenter(new THREE.Vector3());geo.translate(-centroid.x,-centroid.y,-b.min.z);
+ previewMesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0x51a5e7,roughness:.56,side:THREE.DoubleSide}));previewScene.add(previewMesh);
+ previewControl.target.set(0,0,size.z/2);
+ const dist=Math.max(50,Math.max(size.x,size.y,size.z)*2.5);
+ previewCamera.position.set(dist*.65,-dist*.88,dist*.65);previewCamera.lookAt(previewControl.target);previewControl.update();
+ $('previewDimensions').textContent=`${size.x.toFixed(1)} × ${size.y.toFixed(1)} × ${size.z.toFixed(1)} mm`;
+ $('previewResult').textContent='✓ CADモデルは正常（Kiriでの受信は別途確認）';
+}
+$('toggleKiri').onclick=()=>{const small=$('slicePreviewPanel').classList.toggle('collapsed');$('toggleKiri').textContent=small?'CADプレビューを表示':'Kiriを広く表示';};
+$('exportForKiri').onclick=async()=>{try{const stl=await toStlBuffer();download(stl,'manabi3d-for-kiri.stl','model/stl');notify('STLを端末に保存しました。Kiri画面からこのファイルをImportしてね。');}catch(e){notify('STL保存失敗：'+e.message);}};
+
 $('printer').onchange=onProfile;onProfile();const kiri=$('kiri');const apiOrigin='https://grid.space';let kiriLoaded=false;let pendingTransfer=false;let transferring=false;
 function sendKiri(data){try{kiri.contentWindow.postMessage(data,apiOrigin);return true;}catch(e){notify('Kiri:Motoへの連携に失敗しました：'+e.message);return false;}}
 function subscribeKiri(){['parsed','loaded','slice.end','slice.error','preview.end','preview.error'].forEach(event=>sendKiri({event}));}
@@ -793,11 +937,12 @@ $('applyPrinter').onclick=()=>{const x=Number($('bedX').value),y=Number($('bedY'
  sendKiri({mode:'FDM'});sendKiri({device:{bedWidth:x,bedDepth:y,maxHeight:z,bedRound:false,bedBelt:false}});sendKiri({process:{sliceHeight:height,firstSliceHeight:height}});showBoundsWarning();$('kiriStatus').textContent='設定送信済み（反映未確認）';notify('Kiriに設定を送信しました。プリンター適合性は未確認です。');};
 async function transfer(){
  if(!items.length){notify('まずCAD画面で図形を作成してください');return;}
- if(!kiriLoaded){pendingTransfer=true;$('kiriStatus').textContent='Kiri:Moto起動後に自動転送します';notify('スライサーを読み込み中。表示後に自動転送します。');return;}
+ if(!kiriLoaded){pendingTransfer=true;try{await refreshSlicePreview(await toStlBuffer());}catch(e){notify('CADプレビュー失敗：'+e.message);}$('kiriStatus').textContent='Kiri:Moto起動後に自動転送を試します';return;}
  if(transferring)return;transferring=true;
  try{
   $('kiriStatus').dataset.state='';$('kiriStatus').textContent='モデルの転送準備中';
   const data=await toStlBuffer();
+  await refreshSlicePreview(data);
   // The Kiri iframe STL `parse` handler is incompatible with the current STL parser.
   // Its `load` handler uses the stable URL path, which can fetch an in-memory STL data URL.
   // The #model.stl fragment selects STL parsing without altering the fetched bytes.
@@ -810,9 +955,9 @@ async function transfer(){
   // On a cross-origin embedded frame, a missing acknowledgement is not evidence
   // that the import failed. This version does not pretend to verify the load.
   if(!sendKiri({mode:'FDM'})||!sendKiri({clear:true})||!sendKiri({load:url}))throw Error('Kiriへの送信要求に失敗しました');
-  $('kiriStatus').textContent='転送要求を送信済み（画面で確認）';
+  $('kiriStatus').textContent='Kiriへの読み込み要求のみ送信（未確認）';
   $('kiriStatus').dataset.state='';
-  notify('Kiriへの転送要求を送信しました。Kiri画面にモデルが表示されているか確認してください。');
+  notify('上のCADプレビューにモデルを表示しました。Kiriの画面にない場合は「STLを保存」してKiriからImportしてください。');
   transferring=false;
  }catch(e){transferring=false;$('kiriStatus').dataset.state='error';$('kiriStatus').textContent='転送エラー';notify(`転送失敗：${e.message}`);}
 }

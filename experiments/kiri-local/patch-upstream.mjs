@@ -1,0 +1,42 @@
+// Patch a pinned upstream Kiri:Moto checkout BEFORE esbuild.
+// This code is experimental and applies only to our self-hosted copy.
+import fs from 'node:fs';
+import path from 'node:path';
+
+const upstream=path.resolve(process.argv[2]||'upstream');
+const name=path.join(upstream,'src/kiri/app/frame.js');
+let code=fs.readFileSync(name,'utf8');
+function replaceOne(before,after){
+ const occurrences=code.split(before).length-1;
+ if(occurrences!==1)throw Error('Upstream frame API changed ('+occurrences+'): '+before.slice(0,80));
+ code=code.replace(before,after);
+}
+// Fix missing targetOrigin when responding to a same-origin CAD frame.
+replaceOne('const send = source.window.postMessage;',
+  'const send = message => source.postMessage(message, origin);');
+// The upstream parse handler incorrectly passes a callback as the STL scale.
+const start=code.indexOf("            case 'stl':");
+const end=code.indexOf("            case 'obj':",start);
+if(start<0||end<0)throw Error('Expected Kiri STL parse branch not found');
+code=code.slice(0,start)+`            case 'stl':
+                try {
+                    // CAD passes a binary STL ArrayBuffer via postMessage.
+                    if (ArrayBuffer.isView(bin)) {
+                        bin = bin.buffer.slice(bin.byteOffset, bin.byteOffset + bin.byteLength);
+                    }
+                    if (!(bin instanceof ArrayBuffer)) {
+                        throw Error('Expected binary STL ArrayBuffer');
+                    }
+                    const vertices = new load.STL().parse(bin);
+                    if (!vertices || vertices.length < 9 || vertices.length % 9 !== 0) {
+                        throw Error('Empty or invalid STL vertices');
+                    }
+                    platform.add(widget = newWidget().loadVertices(vertices));
+                    send({event: 'parsed', data: [ widget.id ]});
+                } catch (error) {
+                    send({event: 'parse.error', error: String(error?.message || error)});
+                }
+                break;
+`+code.slice(end);
+fs.writeFileSync(name,code);
+console.log('Patched same-origin reply + binary STL handling in Kiri frame API.');

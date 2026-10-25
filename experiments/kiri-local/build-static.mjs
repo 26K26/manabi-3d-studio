@@ -37,6 +37,12 @@ for(const [from,to,req] of [
  ['src/void/solver/planegcs_dist','lib/main/planegcs_dist',false],
  ['license.md','license.md',true]
 ]) copy(from,to,req);
+// Same-tab bridge scripts live on the same Pages origin as the CAD and Kiri.
+for(const name of ['bridge.js','auto-import.js']){
+ const source=path.resolve('experiments/kiri-local',name);
+ const dest=path.join(out,'kiri-local',name);
+ fs.copyFileSync(source,dest);
+}
 // Resolve Kiri's built-in absolute paths against our GitHub Pages project prefix.
 // This script is still a proof-of-concept; CI does not prove runtime compatibility.
 const routePrefixes=['lib','kiri','moto','font','icon','img','obj','wasm','boot','mesh','void'];
@@ -69,6 +75,15 @@ function rejectLinks(dir){
 }
 rejectLinks(path.join(out,'kiri-local'));
 
+// Kiri is a top-level view: load the model automatically from the local
+// transfer store once Kiri initializes. Never require manual STL import.
+const kiriPage=path.join(out,'kiri-local','kiri','index.html');
+let kiriHtml=fs.readFileSync(kiriPage,'utf8');
+if(kiriHtml.split('</body>').length!==2)throw Error('Kiri index body not found');
+kiriHtml=kiriHtml.replace('</body>',`<script src="../bridge.js"></script>
+<script src="../auto-import.js"></script>
+</body>`);
+fs.writeFileSync(kiriPage,kiriHtml);
 const html=fs.readFileSync(path.join(out,'kiri-local','kiri','index.html'),'utf8');
 if(!html.includes(base+'lib/main/kiri.js'))throw Error('Kiri main UI script was not rebased');
 for(const p of ['lib/main/kiri.js','lib/kiri/run/worker.js','lib/kiri/run/minion.js','kiri/index.html']){

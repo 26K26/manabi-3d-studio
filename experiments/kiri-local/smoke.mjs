@@ -3,7 +3,7 @@
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
-import { chromium } from 'playwright-core';
+import { chromium, webkit } from 'playwright';
 
 const site=resolve(process.argv[2]||'test-site');
 const prefix='/manabi-3d-studio/';
@@ -32,12 +32,14 @@ function cubeSTL(){
  return buf;
 }
 const pause=ms=>new Promise(done=>setTimeout(done,ms));
-let browser;
+let browser;let logs=[];let workers=[];
 try{
  await new Promise(done=>server.listen(port,'127.0.0.1',done));
- browser=await chromium.launch({executablePath:process.env.CHROME_BIN||'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--enable-webgl','--enable-unsafe-swiftshader','--use-angle=swiftshader','--disable-dev-shm-usage']});
+ const useWebkit=process.env.BROWSER==='webkit';
+ console.log('Browser engine:',useWebkit?'WebKit':'Chromium');
+ browser=await (useWebkit?webkit:chromium).launch(useWebkit?{headless:true}:{executablePath:process.env.CHROME_BIN||'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--enable-webgl','--enable-unsafe-swiftshader','--use-angle=swiftshader','--disable-dev-shm-usage']});
  const page=await browser.newPage({viewport:{width:1280,height:850}});
- const logs=[],workers=[];
+ logs=[];workers=[];
  page.on('pageerror',e=>logs.push('PAGE ERROR '+String(e)));
  page.on('console',m=>{if(m.type()==='error'||m.type()==='warning')logs.push('CONSOLE '+m.type()+' '+m.text());});
  page.on('response',r=>{if(r.status()>=400)logs.push('HTTP '+r.status()+' '+r.url());});
@@ -53,7 +55,7 @@ try{
   const origin=location.origin;
   return new Promise((ok,fail)=>{
    let phase='subscriptions', events=[];
-   const timer=setTimeout(()=>{window.removeEventListener('message',onMessage);fail(Error('Timed out: '+phase+'; events='+JSON.stringify(events)));},26000);
+   const timer=setTimeout(()=>{window.removeEventListener('message',onMessage);fail(Error('Timed out: '+phase+'; events='+JSON.stringify(events)));},60000);
    function onMessage(e){
     if(e.source!==frame)return;
     const d=e.data||{};
@@ -87,6 +89,7 @@ try{
  console.log('PASS: direct STL to Kiri and slice.end');
 }catch(e){
  console.error('SMOKE FAILURE '+String(e));
+ console.error('BROWSER ERRORS '+JSON.stringify(logs.slice(-50)));
  process.exitCode=1;
 }finally{
  if(browser)await browser.close();

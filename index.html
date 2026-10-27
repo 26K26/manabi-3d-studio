@@ -1891,6 +1891,16 @@ try{const saved=localStorage.getItem('manabi3d-cad-draft-v1');if(saved){loadProj
 if(new URLSearchParams(location.search).has('testShapes')){
  // Debug-only snapshot of *world* bounds, available only with testShapes=1.
  // This verifies rotated solids touch Z=0 and alignment preserves rotations.
+ window.__manabiColorSnapshot=()=>items.map(it=>({
+  id:it.id,color:it.color,hole:it.hole,selected:selectedIds.has(it.id),
+  display:it.mesh.material.color.getHexString().toUpperCase(),
+  emissive:it.mesh.material.emissive.getHexString().toUpperCase()
+ }));
+ window.__manabiLegacyColorCheck=()=>{
+  const rec=defaultRec('box'),older={...rec};delete older.color;
+  const data=validateProject(JSON.stringify({schema:'manabi3d-project',version:1,items:[older]}));
+  return data[0]?.color;
+ };
  window.__manabiSpatialSnapshot=()=>({
   items:items.map(it=>{
    const b=worldBounds(it);

@@ -52,6 +52,27 @@ try{
  console.log('LOADED '+JSON.stringify(await page.evaluate(()=>({modelCount:window.kiri.api.widgets.all().length,status:document.getElementById('manabiImportStatus')?.textContent}))));
  const modelCount=await page.evaluate(()=>window.kiri.api.widgets.all().length);
  if(modelCount!==1)throw Error('Unexpected extra model in slicer: '+modelCount+' (expected only CAD model)');
+ // Clipboard regression: UI copy + hardware-keyboard Ctrl+V.
+ await page.waitForFunction(()=>document.getElementById('manabiImportStatus')?.textContent?.includes('最新CADモデルを1個読み込みました'),null,{timeout:15000});
+ await page.locator('#manabiModelManagerSummary').click();
+ await page.waitForFunction(()=>window.kiri.api.selection.widgets().length===1,null,{timeout:10000});
+ await page.locator('#manabiModelManager button').filter({hasText:'⧉ コピー'}).click();
+ await page.keyboard.press('Control+v');
+ await page.waitForFunction(()=>window.kiri.api.widgets.all().length===2,null,{timeout:10000});
+ const duplicates=await page.evaluate(()=>{
+   const w=window.kiri.api.widgets.all();
+   const a=w[0].getGeoVertices({unroll:true}),b=w[1].getGeoVertices({unroll:true});
+   let equal=a.length===b.length;
+   if(equal){for(let i=0;i<a.length;i++){if(a[i]!==b[i]){equal=false;break;}}}
+   return {identicalGeometry:equal,positions:w.map(k=>({...k.track.pos}))};
+ });
+ console.log('SLICER CLIPBOARD RESULT '+JSON.stringify(duplicates));
+ if(!duplicates.identicalGeometry)throw Error('Pasted slicer mesh differs from the original');
+ if(Math.abs(duplicates.positions[1].x-duplicates.positions[0].x)<1)throw Error('Pasted slicer model was not offset');
+ await page.locator('#manabiModelManageList button[data-remove-id]').last().click();
+ await page.waitForFunction(()=>window.kiri.api.widgets.all().length===1,null,{timeout:10000});
+ console.log('PASS: slicer copy UI, Ctrl+V shortcut and individual delete');
+
  // Check if Kiri's core slicing Worker can receive and answer any task.
  // If the core worker module fails to initialize in WebKit, the progress UI
  // would otherwise sit at 0% forever without an actionable diagnosis.

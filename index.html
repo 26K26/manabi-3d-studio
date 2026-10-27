@@ -92,6 +92,7 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
 #soloToggle[aria-pressed="true"]{background:#e2f1ff;border-color:#549bdd;color:#125b96;font-weight:750}
 #soloToggle:disabled{opacity:.45}
 #shapeList .shapeItem.soloHidden{opacity:.55}
+#shapeList .shapeListColor{display:inline-block;width:18px;height:18px;border-radius:50%;border:1px solid #a8b9ca;box-shadow:0 0 0 1px #fff inset;margin-left:8px;flex-shrink:0}
 
 
 #textEditPanel{border:1px solid #b6d9f8;border-radius:9px;background:#f2f8ff;padding:10px 8px;margin-top:12px}
@@ -432,6 +433,15 @@ $('rotateMinus').onclick=()=>rotateSelectedByDegrees(-15);
 $('rotatePlus').onclick=()=>rotateSelectedByDegrees(15);
 $('modeMove').onclick=()=>setMode('translate');$('modeScale').onclick=()=>setMode('scale');$('modeRotate').onclick=()=>setMode('rotate');
 const items=[];let currentId=null;let uid=0;const undo=[];const selectedIds=new Set();let rangeSelectActive=false;
+const DEFAULT_SHAPE_COLOR='#4EAFF4';
+let insertionShapeColor=DEFAULT_SHAPE_COLOR;
+let shapeColorPickerMode='new';
+function normalizeShapeColor(color,fallback=DEFAULT_SHAPE_COLOR){
+ if(typeof color!=='string')return fallback;
+ const clean=color.trim();
+ return /^#[\da-fA-F]{6}$/.test(clean)?clean.toUpperCase():fallback;
+}
+
 let alignReferenceId=null;
 // In-app CAD clipboard (not the OS text clipboard). Keep independent copies
 // of serialized objects, including hole flags, 3D text and imported STL vertices.
@@ -443,7 +453,7 @@ let dimensionLabelsVisible=false;
 let soloId=null;
 const selectInputs=['dimX','dimY','dimZ','posX','posY','posZ','angleX','angleY','angle'];
 const newId=()=>`shape_${Date.now().toString(36)}_${++uid}`;
-function defaultRec(type){const names={box:'ボックス',cylinder:'円柱',sphere:'球',cone:'円すい',roof:'屋根',hex:'六角柱',tube:'パイプ',torus:'リング',text:'文字',pyramid:'四角すい',wedge:'くさび',halfcylinder:'半円柱',hemisphere:'半球',thinring:'薄いリング',pentagon:'五角柱',icosa:'二十面体',octa:'八面体',dodeca:'十二面体',star:'星形',starpeak:'立体スター',heart:'ハート',cup:'くり抜き円柱',gem:'宝石',paraboloid:'放物面',frustum:'角すい台',arch:'アーチ',spin:'回転体・こま',wave:'波形',tetra:'三角すい'};const flat=['star','starpeak','heart','thinring','gem','wave','sketch'];return {id:newId(),type,name:names[type]||'図形',w:type==='text'?56:type==='wave'?42:25,d:type==='text'?16:25,h:type==='text'?3:flat.includes(type)?8:25,x:0,y:0,z:0,angle:0,angleX:0,angleY:0,hole:false,...(type==='text'?{text:'名前'}:{})};}
+function defaultRec(type){const names={box:'ボックス',cylinder:'円柱',sphere:'球',cone:'円すい',roof:'屋根',hex:'六角柱',tube:'パイプ',torus:'リング',text:'文字',pyramid:'四角すい',wedge:'くさび',halfcylinder:'半円柱',hemisphere:'半球',thinring:'薄いリング',pentagon:'五角柱',icosa:'二十面体',octa:'八面体',dodeca:'十二面体',star:'星形',starpeak:'立体スター',heart:'ハート',cup:'くり抜き円柱',gem:'宝石',paraboloid:'放物面',frustum:'角すい台',arch:'アーチ',spin:'回転体・こま',wave:'波形',tetra:'三角すい'};const flat=['star','starpeak','heart','thinring','gem','wave','sketch'];return {id:newId(),type,name:names[type]||'図形',w:type==='text'?56:type==='wave'?42:25,d:type==='text'?16:25,h:type==='text'?3:flat.includes(type)?8:25,x:0,y:0,z:0,angle:0,angleX:0,angleY:0,hole:false,color:insertionShapeColor,...(type==='text'?{text:'名前'}:{})};}
 
 // 文字を端末の日本語フォントからオフライン形状化する。Canvas raster → 境界線 → 閉じた押し出し形状。
 // 同梱フォントなしで、日本語・英数字をiPad / Chromebookで立体化できる。
@@ -664,8 +674,24 @@ function geometryOf(rec){let geom;
  else if(["sketch","pyramid","wedge","halfcylinder","hemisphere","thinring","pentagon","icosa","octa","dodeca","star","starpeak","heart","cup","gem","paraboloid","frustum","arch","spin","wave","tetra"].includes(rec.type)){geom=extraGeometry(rec);}
  else throw Error('未対応の図形タイプ: '+rec.type);
  geom.computeBoundingBox();geom.computeVertexNormals();return geom;}
-function addRec(rec,select=true){if(items.length>=150)throw Error('試作版では150個まで');const mat=new THREE.MeshStandardMaterial({color:0x4eaff4,roughness:.55,metalness:.02,side:THREE.DoubleSide,transparent:!!rec.hole,opacity:rec.hole?.32:1,depthWrite:!rec.hole});
- const mesh=new THREE.Mesh(geometryOf(rec),mat);mesh.userData.id=rec.id;mesh.position.set(rec.x,rec.y,rec.z);mesh.rotation.order='XYZ';mesh.rotation.set(THREE.MathUtils.degToRad(Number(rec.angleX)||0),THREE.MathUtils.degToRad(Number(rec.angleY)||0),THREE.MathUtils.degToRad(Number(rec.angle)||0),'XYZ');scene.add(mesh);items.push({...rec,mesh});if(select)setSelected(rec.id,false);$('emptyHelp').hidden=true;renderShapeList();return mesh;}
+function addRec(rec,select=true){
+ if(items.length>=150)throw Error('試作版では150個まで');
+ const color=normalizeShapeColor(rec.color);
+ const mat=new THREE.MeshStandardMaterial({
+  color:rec.hole?0xA3ACB6:color,roughness:.55,metalness:.02,
+  side:THREE.DoubleSide,transparent:!!rec.hole,opacity:rec.hole?.32:1,depthWrite:!rec.hole
+ });
+ const mesh=new THREE.Mesh(geometryOf(rec),mat);
+ mesh.userData.id=rec.id;mesh.position.set(rec.x,rec.y,rec.z);
+ mesh.rotation.order='XYZ';
+ mesh.rotation.set(THREE.MathUtils.degToRad(Number(rec.angleX)||0),THREE.MathUtils.degToRad(Number(rec.angleY)||0),THREE.MathUtils.degToRad(Number(rec.angle)||0),'XYZ');
+ scene.add(mesh);
+ const item={...rec,color,mesh};items.push(item);
+ refreshObjectAppearance(item,selectedIds.has(rec.id));
+ if(select)setSelected(rec.id,false);
+ $('emptyHelp').hidden=true;renderShapeList();
+ return mesh;
+}
 function removeAll(){soloId=null;for(const it of items){scene.remove(it.mesh);it.mesh.geometry.dispose();it.mesh.material.dispose();}items.length=0;setSelection([]);$('emptyHelp').hidden=false;}
 function chosenItems(){return items.filter(it=>selectedIds.has(it.id));}
 function syncSoloView(){
@@ -703,9 +729,9 @@ function setSelection(ids){
  syncSoloView();
  for(const it of items){
   const isPicked=selectedIds.has(it.id);
-  it.mesh.material.color.setHex(it.hole?(isPicked?0xf4a18e:0xe86f66):(isPicked?0xf6a543:0x4eaff4));
-  if(it.mesh.material.emissive)it.mesh.material.emissive.setHex(isPicked?0x2b1700:0x000000);
+  refreshObjectAppearance(it,isPicked);
  }
+ refreshShapeColorControls();
  const single=picked.length===1?picked[0]:null;
  $('dimensionToggle').disabled=!single;
  $('dimensionToggle').setAttribute('aria-pressed',String(!!single&&dimensionLabelsVisible));
@@ -728,7 +754,22 @@ function setSelection(ids){
 }
 function setSelected(id,showDimensions=true){dimensionLabelsVisible=!!id&&!!showDimensions;setSelection(id?[id]:[]);}
 function toggleSelected(id){const ids=new Set(selectedIds);if(ids.has(id))ids.delete(id);else ids.add(id);dimensionLabelsVisible=ids.size===1;setSelection([...ids]);}
-function renderShapeList(){const area=$('shapeList');if(!area)return;area.replaceChildren();for(const it of items){const b=document.createElement('button');b.type='button';b.dataset.shapeId=it.id;b.className='shapeItem'+(selectedIds.has(it.id)?' active':'')+(it.hole?' hole':'')+(soloId!==null&&soloId!==it.id?' soloHidden':'');b.textContent=`${it.hole?'◌ ':'■ '}${it.name}${selectedIds.has(it.id)?' ✓':''}${soloId!==null&&soloId!==it.id?'（非表示中）':''}`;b.setAttribute('aria-pressed',String(selectedIds.has(it.id)));b.onclick=e=>{if(e.ctrlKey||e.metaKey||e.shiftKey||rangeSelectActive)toggleSelected(it.id);else setSelected(it.id);};area.append(b);}}
+function renderShapeList(){
+ const area=$('shapeList');if(!area)return;
+ area.replaceChildren();
+ for(const it of items){
+  const b=document.createElement('button');
+  b.type='button';b.dataset.shapeId=it.id;
+  b.className='shapeItem'+(selectedIds.has(it.id)?' active':'')+(it.hole?' hole':'')+(soloId!==null&&soloId!==it.id?' soloHidden':'');
+  b.textContent=`${it.hole?'◌ ':'■ '}${it.name}${selectedIds.has(it.id)?' ✓':''}${soloId!==null&&soloId!==it.id?'（非表示中）':''}`;
+  b.setAttribute('aria-pressed',String(selectedIds.has(it.id)));
+  const swatch=document.createElement('span');swatch.className='shapeListColor';swatch.title=it.hole?'穴（選択色は保持）':'色 '+normalizeShapeColor(it.color);
+  swatch.style.background=it.hole?'repeating-linear-gradient(135deg,#b3bcc8 0 4px,#eff2f5 4px 8px)':normalizeShapeColor(it.color);
+  b.append(swatch);
+  b.onclick=e=>{if(e.ctrlKey||e.metaKey||e.shiftKey||rangeSelectActive)toggleSelected(it.id);else setSelected(it.id);};
+  area.append(b);
+ }
+}
 function selected(){return items.find(i=>i.id===currentId);}
 $('dimensionToggle').onclick=()=>{if(!selected())return;dimensionLabelsVisible=!dimensionLabelsVisible;setSelection([...selectedIds]);notify(dimensionLabelsVisible?'寸法を表示中。もう一度タップするか「寸法を隠す」で非表示にできます。':'寸法を非表示にしました。図形をタップすると再表示できます。');};
 // Visible shape-size handles. They are HTML overlaid on the 3D canvas so
@@ -879,7 +920,7 @@ function applyRec(it){
  it.mesh.position.set(it.x,it.y,it.z);
  it.mesh.rotation.order='XYZ';
  it.mesh.rotation.set(THREE.MathUtils.degToRad(Number(it.angleX)||0),THREE.MathUtils.degToRad(Number(it.angleY)||0),THREE.MathUtils.degToRad(Number(it.angle)||0),'XYZ');
- it.mesh.material.transparent=!!it.hole;it.mesh.material.opacity=it.hole?.32:1;it.mesh.material.depthWrite=!it.hole;
+ refreshObjectAppearance(it,selectedIds.has(it.id));
  updateResizeHandles();updateRotationAxisOverlay();
 }
 function serializeRec(it){const {mesh,...clean}=it;return JSON.parse(JSON.stringify(clean));}
@@ -1287,7 +1328,7 @@ function drawPlacementGhost(rec){
  discardGhost();
  const geometry=geometryOf(rec);
  const material=new THREE.MeshStandardMaterial({
-  color:rec.hole?0xe76a5e:0x2b9be8,transparent:true,opacity:.35,
+  color:rec.hole?0xA3ACB6:normalizeShapeColor(rec.color),transparent:true,opacity:.35,
   roughness:.5,side:THREE.DoubleSide,depthWrite:false
  });
  placementGhost=new THREE.Mesh(geometry,material);
@@ -1549,7 +1590,7 @@ async function combineSelection(){
   if([dims.x,dims.y,dims.z].some(v=>v<.001||!Number.isFinite(v)))throw Error('結果に厚みがありません');
   const vertices=Array.from(pos.array);
   const name=holes.length?'穴あけした立体':'結合した立体';
-  const rec={id:newId(),name,type:'imported',w:dims.x,d:dims.y,h:dims.z,baseW:dims.x,baseD:dims.y,baseH:dims.z,x:(bb.min.x+bb.max.x)/2,y:(bb.min.y+bb.max.y)/2,z:bb.min.z,angle:0,hole:false,vertices};
+  const rec={id:newId(),name,type:'imported',w:dims.x,d:dims.y,h:dims.z,baseW:dims.x,baseD:dims.y,baseH:dims.z,x:(bb.min.x+bb.max.x)/2,y:(bb.min.y+bb.max.y)/2,z:bb.min.z,angle:0,hole:false,color:normalizeShapeColor(solids[0]?.color),vertices};
   for(let i=0;i<vertices.length;i+=3){vertices[i]-=rec.x;vertices[i+1]-=rec.y;vertices[i+2]-=rec.z;}
   undoSnapshot();
   // Only consume the two-or-more chosen shapes. Unrelated shapes stay intact.
@@ -1566,7 +1607,7 @@ $('combineTop').onclick=combineSelection;
 $('saveStl').onclick=async()=>{try{const stl=await toStlBuffer();download(stl,'manabi3d-model.stl','model/stl');notify('結合・穴あけを反映したSTLを端末に保存しました');}catch(e){notify(`STL保存失敗：${e.message}`);}};
 $('saveProject').onclick=()=>{download(JSON.stringify(documentData(),null,2),'manabi3d-project.m3d.json','application/json');notify('再編集用プロジェクトを端末に保存しました');};
 function validateProject(raw){const doc=JSON.parse(raw);if(doc.schema!=='manabi3d-project'||doc.version!==1||!Array.isArray(doc.items)||doc.items.length>150)throw Error('このバージョンで読み込めない編集データです');
- const result=[];for(const old of doc.items){const type=old.type;if(!["box","cylinder","sphere","cone","roof","hex","tube","torus","text","imported","sketch","pyramid","wedge","halfcylinder","hemisphere","thinring","pentagon","icosa","octa","dodeca","star","starpeak","heart","cup","gem","paraboloid","frustum","arch","spin","wave","tetra"].includes(type))throw Error('未対応の図形です');const rec={id:newId(),type,name:String(old.name||type).slice(0,60),w:Number(old.w),d:Number(old.d),h:Number(old.h),x:Number(old.x),y:Number(old.y),z:Number(old.z),angle:Number(old.angle??0),angleX:Number(old.angleX??0),angleY:Number(old.angleY??0),hole:!!old.hole,...(type==='text'?{text:String(old.text||'名前').slice(0,20)}:{})};
+ const result=[];for(const old of doc.items){const type=old.type;if(!["box","cylinder","sphere","cone","roof","hex","tube","torus","text","imported","sketch","pyramid","wedge","halfcylinder","hemisphere","thinring","pentagon","icosa","octa","dodeca","star","starpeak","heart","cup","gem","paraboloid","frustum","arch","spin","wave","tetra"].includes(type))throw Error('未対応の図形です');const rec={id:newId(),type,name:String(old.name||type).slice(0,60),w:Number(old.w),d:Number(old.d),h:Number(old.h),x:Number(old.x),y:Number(old.y),z:Number(old.z),angle:Number(old.angle??0),angleX:Number(old.angleX??0),angleY:Number(old.angleY??0),hole:!!old.hole,color:normalizeShapeColor(old.color),...(type==='text'?{text:String(old.text||'名前').slice(0,20)}:{})};
  if([rec.w,rec.d,rec.h].some(v=>!Number.isFinite(v)||v<=0||v>1000)||[rec.x,rec.y,rec.z].some(v=>!Number.isFinite(v)||Math.abs(v)>10000)||[rec.angleX,rec.angleY,rec.angle].some(v=>!Number.isFinite(v)||Math.abs(v)>36000))throw Error('数値に不正があります');if(type==='sketch'){
   if(!Array.isArray(old.path)||old.path.length<3||old.path.length>350||old.path.some(p=>!Array.isArray(p)||p.length!==2||p.some(n=>!Number.isFinite(n)||Math.abs(n)>1)))throw Error('手描きの輪郭データが不正です');
   rec.path=old.path.map(p=>p.slice());
@@ -1575,7 +1616,7 @@ function validateProject(raw){const doc=JSON.parse(raw);if(doc.schema!=='manabi3
 function loadProjectString(raw){const recs=validateProject(raw);removeAll();for(const rec of recs)addRec(rec,false);setSelected(recs.at(-1)?.id||null,false);$('emptyHelp').hidden=!!items.length;autosave();notify(`${recs.length}個の図形を読み込みました`);}
 $('loadProject').onclick=()=>$('projectFile').click();$('projectFile').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{loadProjectString(await f.text());}catch(e){notify(`編集データ読込失敗：${e.message}`);}finally{e.target.value='';}};
 $('openStl').onclick=()=>$('stlFile').click();$('stlFile').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{if(f.size>12*1024*1024)throw Error('試作版の読み込み上限は12MB');const buffer=await f.arrayBuffer();const geom=new STLLoader().parse(buffer);const attr=geom.getAttribute('position');if(!attr||attr.count<3||attr.count>1000000)throw Error('三角形数が大きすぎるか、STLが不正です');const mesh=geom.index?geom.toNonIndexed():geom;mesh.computeBoundingBox();const bb=mesh.boundingBox;const dx=bb.max.x-bb.min.x,dy=bb.max.y-bb.min.y,dz=bb.max.z-bb.min.z;if(Math.min(dx,dy,dz)<=0)throw Error('厚みがないSTLは読み込めません');mesh.translate(-(bb.min.x+bb.max.x)/2,-(bb.min.y+bb.max.y)/2,-bb.min.z);
- const vertices=Array.from(mesh.getAttribute('position').array);const rec={id:newId(),type:'imported',name:f.name,w:dx,d:dy,h:dz,baseW:dx,baseD:dy,baseH:dz,x:0,y:0,z:0,angle:0,vertices};undoSnapshot();addRec(rec);autosave();notify(`${f.name}を読み込みました（完成形状として編集）`);
+ const vertices=Array.from(mesh.getAttribute('position').array);const rec={id:newId(),type:'imported',name:f.name,w:dx,d:dy,h:dz,baseW:dx,baseD:dy,baseH:dz,x:0,y:0,z:0,angle:0,color:insertionShapeColor,vertices};undoSnapshot();addRec(rec);autosave();notify(`${f.name}を読み込みました（完成形状として編集）`);
  }catch(err){notify(`STL読込失敗：${err.message}`);}finally{e.target.value='';}};
 // Full-page Kiri runs in the SAME TAB after the CAD state is saved locally.
 // Keeping the embedded Kiri alive beside WebGL CAD strained WebKit/iPad memory.

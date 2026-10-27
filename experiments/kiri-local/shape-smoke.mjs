@@ -95,6 +95,67 @@ try{
  if(Number(await page.locator('#angleX').inputValue())!==15||Number(await page.locator('#angleY').inputValue())!==15||Number(await page.locator('#angle').inputValue())!==-15)throw Error('XYZ angles changed across reload');
  console.log('PASS: X/Y/Z axis buttons, independent 15-degree rotate, model persistence and browser reload');
 
+ // Ground a tilted shape using its rotated world-space bounds, not rec.z.
+ const snap=()=>page.evaluate(()=>window.__manabiSpatialSnapshot());
+ await page.locator('#posZ').fill('55');
+ await page.locator('#posZ').press('Tab');
+ const floating=(await snap()).items[0];
+ if(floating.bounds.min.z<5)throw Error('Expected floated tilted mesh before ground');
+ await page.locator('#dropToFloor').click();
+ let landed=(await snap()).items[0];
+ if(Math.abs(landed.bounds.min.z)>0.0005)throw Error('Tilted shape did not touch Z=0: '+JSON.stringify(landed));
+ if(landed.angleX!==15||landed.angleY!==15||landed.angle!==-15)throw Error('Drop unexpectedly reset rotation');
+ console.log('PASS: tilted mesh lowest world-space point lands on Z=0');
+
+ // With two shapes selected, preserve their relative heights as an assembly.
+ await page.locator('#posZ').fill('48');await page.locator('#posZ').press('Tab');
+ await page.locator('#shapeList button').nth(1).click();
+ await page.locator('#posZ').fill('92');await page.locator('#posZ').press('Tab');
+ await page.locator('#shapeList button').first().click();
+ await page.locator('#shapeList button').nth(1).click({modifiers:['Control']});
+ const beforeDrop=(await snap()).items;
+ if(beforeDrop.filter(x=>x.selected).length!==2)throw Error('Two meshes not selected for assembly drop');
+ await page.locator('#dropToFloor').click();
+ const afterDrop=(await snap()).items;
+ const minBottom=Math.min(...afterDrop.map(x=>x.bounds.min.z));
+ if(Math.abs(minBottom)>0.0005)throw Error('Group was not landed: '+minBottom);
+ const move0=afterDrop[0].z-beforeDrop[0].z,move1=afterDrop[1].z-beforeDrop[1].z;
+ if(Math.abs(move0-move1)>0.0005)throw Error('Group drop damaged relative heights: '+move0+' '+move1);
+ await page.locator('#undoObjects').click();
+ const unDropped=(await snap()).items;
+ if(Math.abs(unDropped[0].z-beforeDrop[0].z)>0.0005||Math.abs(unDropped[1].z-beforeDrop[1].z)>0.0005)throw Error('Undo failed after group drop');
+ console.log('PASS: assembly drop preserves relative Z and supports undo');
+
+ // The first selected model is a fixed reference. Other models are aligned
+ // against its transformed bounding edges/centers, one chosen axis at a time.
+ await page.locator('#shapeList button').first().click();
+ await page.locator('#shapeList button').nth(1).click({modifiers:['Control']});
+ await page.locator('#alignTop').click();
+ if(await page.locator('#alignOverlay').isHidden())throw Error('Align chooser did not open');
+ const refId=(await snap()).items[0].id;
+ await page.locator('#alignReference').selectOption(refId);
+ const fixed=(await snap()).items[0];
+ const xyCenter=(v,axis)=>(v.bounds.min[axis]+v.bounds.max[axis])/2;
+ await page.locator('[data-align-axis="x"][data-align-position="center"]').click();
+ let aligned=(await snap()).items;
+ if(Math.abs(xyCenter(aligned[0],'x')-xyCenter(aligned[1],'x'))>.0005)throw Error('X centers are not aligned');
+ await page.locator('[data-align-axis="y"][data-align-position="max"]').click();
+ aligned=(await snap()).items;
+ if(Math.abs(aligned[0].bounds.max.y-aligned[1].bounds.max.y)>.0005)throw Error('Y back edges are not aligned');
+ await page.locator('[data-align-axis="z"][data-align-position="min"]').click();
+ aligned=(await snap()).items;
+ if(Math.abs(aligned[0].bounds.min.z-aligned[1].bounds.min.z)>.0005)throw Error('Z bottom edges are not aligned');
+ const finalRef=aligned.find(x=>x.id===refId);
+ if(!finalRef||Math.abs(finalRef.x-fixed.x)>.0005||Math.abs(finalRef.y-fixed.y)>.0005||Math.abs(finalRef.z-fixed.z)>.0005)throw Error('Reference mesh moved during alignment');
+ if(aligned[0].angleX!==15||aligned[0].angleY!==15||aligned[0].angle!==-15)throw Error('Alignment reset model rotation');
+ await page.waitForTimeout(500);
+ const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('manabi3d-cad-draft-v1')).items);
+ if(saved.length!==2)throw Error('Align autosave lost a model');
+ await page.locator('#alignClose').click();
+ if(!await page.locator('#alignOverlay').isHidden())throw Error('Align overlay did not close');
+ console.log('PASS: fixed-reference X center / Y max / Z min alignment on tilted models, autosave, panel close');
+
+
 
 }catch(e){
  console.error('CAD SMOKE FAILED',e);

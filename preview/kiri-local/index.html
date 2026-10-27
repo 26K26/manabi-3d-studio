@@ -140,6 +140,14 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
 .sketchButtons{display:flex;justify-content:space-between;gap:7px;flex-wrap:wrap;margin-top:12px}
 .sketchButtons button{padding:11px 12px;min-height:40px}
 #sketchDialog input[type=number]{width:74px;padding:7px;border:1px solid #b0c8de;border-radius:7px}
+
+.rotationAxisOverlay{position:absolute;z-index:6;display:flex;align-items:center;gap:4px;padding:6px 7px;white-space:nowrap;max-width:max-content;background:#fffffff0;border:1px solid #9cbddd;border-radius:12px;box-shadow:0 6px 16px #2d4c6b33;transform:translate(-50%,-100%)}
+.rotationAxisOverlay[hidden]{display:none!important}
+.rotationAxisOverlay button{flex:0 0 auto;min-width:29px;min-height:34px;border:1px solid #bbcad9;border-radius:7px;background:#fff;color:#2b4b6c;font-size:12px;font-weight:750;padding:6px 7px;touch-action:manipulation}
+.rotationAxisOverlay button[data-axis=x]{color:#bf3030}.rotationAxisOverlay button[data-axis=y]{color:#198355}.rotationAxisOverlay button[data-axis=z]{color:#216bbd}
+.rotationAxisOverlay button[aria-pressed=true]{background:#dceeff;border:2px solid currentColor;box-shadow:0 1px 5px #3570aa33}
+.rotatePrompt,.rotateAngle{font-size:11px;color:#405c79}.rotateAngle{min-width:35px;text-align:right;font-variant-numeric:tabular-nums}
+@media(max-width:690px){.rotationAxisOverlay{gap:3px;padding:5px}.rotationAxisOverlay button{min-width:28px;min-height:37px;padding:4px 5px}.rotatePrompt{display:none}}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","three-bvh-csg":"https://esm.sh/three-bvh-csg@0.0.18?external=three"}}
@@ -168,7 +176,7 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
  </div>
  <div id="cadContextMenu" role="menu" aria-label="CAD図形の操作" hidden><button id="contextCopy" type="button" role="menuitem">⧉ 選択図形をコピー</button><button id="contextPaste" type="button" role="menuitem">▣ 貼り付け</button><button id="contextDuplicate" type="button" role="menuitem">⧉ すぐ複製</button><button id="contextDelete" type="button" role="menuitem" class="danger">🗑 選択図形を削除</button></div>
  <div id="cadBody">
-  <div id="canvasWrap"><canvas id="canvas3d" aria-label="3D CAD 作業領域"></canvas><div id="resizeOverlay" aria-label="ドラッグ式の寸法ハンドル"></div><div id="marquee" hidden aria-hidden="true"></div><div id="gripHint" hidden>● 赤＝幅　● 緑＝奥行　● 青＝高さ　● 紫＝全体　／　数字をクリックして直接入力</div><div id="emptyHelp">右の図形をドラッグして作業面に配置しよう</div><div id="axisHelp">図形をタップ：寸法表示／もう一度タップ：非表示 ／ ▧ 範囲選択：複数選択<br>複数選択して「🔗 結合・穴あけ」 ／ 赤い穴図形の重なり部分を除去</div></div>
+  <div id="canvasWrap"><canvas id="canvas3d" aria-label="3D CAD 作業領域"></canvas><div id="resizeOverlay" aria-label="ドラッグ式の寸法ハンドル"></div><div id="rotationAxisOverlay" class="rotationAxisOverlay" hidden role="group" aria-label="選択した図形の回転軸"><span class="rotatePrompt">回転軸</span><button type="button" id="rotateAxisX" data-axis="x" title="X軸まわりの回転リング">X</button><button type="button" id="rotateAxisY" data-axis="y" title="Y軸まわりの回転リング">Y</button><button type="button" id="rotateAxisZ" data-axis="z" title="Z軸まわりの回転リング">Z</button><button type="button" id="rotateMinus" title="選択軸を15度戻す">−15°</button><button type="button" id="rotatePlus" title="選択軸を15度回す">+15°</button><span id="rotateAxisAngle" class="rotateAngle">0°</span></div><div id="marquee" hidden aria-hidden="true"></div><div id="gripHint" hidden>● 赤＝幅　● 緑＝奥行　● 青＝高さ　● 紫＝全体　／　数字をクリックして直接入力</div><div id="emptyHelp">右の図形をドラッグして作業面に配置しよう</div><div id="axisHelp">図形のそばにあるX・Y・Zで回転軸を選択、リングをドラッグ ／ ▧ 範囲選択：複数選択<br>複数選択して「🔗 結合・穴あけ」 ／ 赤い穴図形の重なり部分を除去</div></div>
   <aside id="props" aria-label="図形の追加と編集">
    <div id="shapePanel">
     <h2>基本図形</h2>
@@ -224,7 +232,7 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
     <div id="textEditPanel" hidden><h3>文字（立体テキスト）</h3><label for="textContent" class="textFieldLabel">作品に入れる文字（20文字以内）</label><input id="textContent" type="text" maxlength="20" value="名前" placeholder="例：さくら、ABC、3年" autocomplete="off"><p class="hint">文字も実体・穴として扱えます。文字を置いた後に変更できます。長い文字は幅を調整してね。</p></div>
     <h3>大きさ (mm)</h3><div class="labels"><span>幅 X</span><span>奥行 Y</span><span>高さ Z</span></div><div class="triple"><input id="dimX" type="number" min="0.1" max="500" step="0.5" aria-label="幅 X"><input id="dimY" type="number" min="0.1" max="500" step="0.5" aria-label="奥行 Y"><input id="dimZ" type="number" min="0.1" max="500" step="0.5" aria-label="高さ Z"></div>
     <h3>配置 (mm)</h3><div class="labels"><span>X</span><span>Y</span><span>Z（底面）</span></div><div class="triple"><input id="posX" type="number" step="1" aria-label="位置 X"><input id="posY" type="number" step="1" aria-label="位置 Y"><input id="posZ" type="number" step="1" aria-label="位置 Z"></div>
-    <div class="control"><label for="angle">Z回転 (°)</label><input id="angle" type="number" step="5" value="0"></div>
+    <h3>回転角度 (°)</h3><div class="labels"><span>X軸</span><span>Y軸</span><span>Z軸</span></div><div class="triple"><input id="angleX" type="number" step="5" value="0" aria-label="X軸の回転角度"><input id="angleY" type="number" step="5" value="0" aria-label="Y軸の回転角度"><input id="angle" type="number" step="5" value="0" aria-label="Z軸の回転角度"></div><p class="hint">図形のそばのX・Y・Zボタンで軸を選ぶと、回転リングをドラッグできます。</p>
     <div class="sidebarActions" style="margin-top:10px"><button id="duplicate">複製</button><button id="remove" class="danger">削除</button></div>
    </div>
    <h3>図形一覧</h3><div id="shapeList"></div>
@@ -305,16 +313,47 @@ const controls=new OrbitControls(camera,renderer.domElement);controls.target.set
 scene.add(new THREE.HemisphereLight(0xffffff,0xcbdff3,2.5));const light=new THREE.DirectionalLight(0xffffff,2.1);light.position.set(90,-100,220);scene.add(light);
 const ground=new THREE.GridHelper(400,40,0xa6bacd,0xe4ebf2);ground.rotation.x=Math.PI/2;scene.add(ground);const axes=new THREE.AxesHelper(65);scene.add(axes);
 const transform=new TransformControls(camera,renderer.domElement);
-scene.add(transform.getHelper());let activeMode='translate';transform.setMode(activeMode);transform.setSize(.8);
+scene.add(transform.getHelper());let activeMode='translate',activeRotationAxis='z';transform.setMode(activeMode);transform.setSize(.8);transform.setSpace('local');
 transform.addEventListener('dragging-changed',e=>{controls.enabled=!e.value;});
 transform.addEventListener('mouseDown',()=>undoSnapshot());
 transform.addEventListener('mouseUp',()=>{const it=selected();if(!it)return; const mesh=it.mesh;
  const factor=mesh.scale;it.w=clampNumber(it.w*factor.x,.1,500,it.w);it.d=clampNumber(it.d*factor.y,.1,500,it.d);it.h=clampNumber(it.h*factor.z,.1,500,it.h);
  it.x=mesh.position.x;it.y=mesh.position.y;it.z=mesh.position.z;
- it.angle=THREE.MathUtils.radToDeg(mesh.rotation.z);mesh.scale.set(1,1,1);applyRec(it);setSelected(it.id);autosave();notify('モデルを直接操作しました');});
-function setMode(mode){if(rangeSelectActive)setRangeMode(false);activeMode=mode;transform.setMode(mode);transform.showX=mode!=='rotate';transform.showY=mode!=='rotate';transform.showZ=true;setSelection([...selectedIds]);
+ it.angleX=Number(THREE.MathUtils.radToDeg(mesh.rotation.x).toFixed(4));
+ it.angleY=Number(THREE.MathUtils.radToDeg(mesh.rotation.y).toFixed(4));
+ it.angle=Number(THREE.MathUtils.radToDeg(mesh.rotation.z).toFixed(4));
+ mesh.scale.set(1,1,1);applyRec(it);setSelected(it.id,false);autosave();
+ notify(activeMode==='rotate'?`${activeRotationAxis.toUpperCase()}軸の回転を反映しました（X:${Number(it.angleX.toFixed(1))}° Y:${Number(it.angleY.toFixed(1))}° Z:${Number(it.angle.toFixed(1))}°）`:'モデルを直接操作しました');});
+function syncRotationGizmo(){
+ const rotating=activeMode==='rotate';
+ transform.showX=!rotating||activeRotationAxis==='x';
+ transform.showY=!rotating||activeRotationAxis==='y';
+ transform.showZ=!rotating||activeRotationAxis==='z';
+ for(const axis of ['x','y','z'])$('rotateAxis'+axis.toUpperCase()).setAttribute('aria-pressed',String(rotating&&activeRotationAxis===axis));
+}
+function setMode(mode){
+ if(rangeSelectActive)setRangeMode(false);
+ activeMode=mode;transform.setMode(mode);transform.setSpace('local');
+ syncRotationGizmo();setSelection([...selectedIds]);
  for(const [id,val] of [['modeMove','translate'],['modeScale','scale'],['modeRotate','rotate']])$(id).classList.toggle('selected',val===mode);
- notify(mode==='translate'?'矢印で移動／色付きつまみで寸法変更':mode==='scale'?'赤・緑・青・紫のつまみをドラッグして大きさを変更':'回転ハンドルをドラッグ');}
+ notify(mode==='rotate'?`図形のそばでX・Y・Zを選んで、${activeRotationAxis.toUpperCase()}軸の回転リングをドラッグしてね。`:mode==='translate'?'矢印で移動／色付きつまみで寸法変更':'赤・緑・青・紫のつまみをドラッグして大きさを変更');
+}
+function chooseRotationAxis(axis){
+ if(!['x','y','z'].includes(axis))return;
+ if(!selected()){notify('回転する図形を1つ選択してください');return;}
+ activeRotationAxis=axis;setMode('rotate');
+}
+for(const axis of ['x','y','z'])$('rotateAxis'+axis.toUpperCase()).onclick=()=>chooseRotationAxis(axis);
+function rotateSelectedByDegrees(degrees){
+ const it=selected();if(!it)return;
+ const key=activeRotationAxis==='x'?'angleX':activeRotationAxis==='y'?'angleY':'angle';
+ undoSnapshot();
+ it[key]=Number((Number(it[key]||0)+degrees).toFixed(4));
+ applyRec(it);setSelection([it.id]);autosave();
+ notify(`${activeRotationAxis.toUpperCase()}軸を${degrees>0?'+':''}${degrees}°回転しました。`);
+}
+$('rotateMinus').onclick=()=>rotateSelectedByDegrees(-15);
+$('rotatePlus').onclick=()=>rotateSelectedByDegrees(15);
 $('modeMove').onclick=()=>setMode('translate');$('modeScale').onclick=()=>setMode('scale');$('modeRotate').onclick=()=>setMode('rotate');
 const items=[];let currentId=null;let uid=0;const undo=[];const selectedIds=new Set();let rangeSelectActive=false;
 // In-app CAD clipboard (not the OS text clipboard). Keep independent copies
@@ -325,9 +364,9 @@ let clipboardRecords=null,clipboardPasteCount=0;
 let dimensionLabelsVisible=false;
 // Solo view affects CAD viewport only. The saved project and STL exports always use ALL items.
 let soloId=null;
-const selectInputs=['dimX','dimY','dimZ','posX','posY','posZ','angle'];
+const selectInputs=['dimX','dimY','dimZ','posX','posY','posZ','angleX','angleY','angle'];
 const newId=()=>`shape_${Date.now().toString(36)}_${++uid}`;
-function defaultRec(type){const names={box:'ボックス',cylinder:'円柱',sphere:'球',cone:'円すい',roof:'屋根',hex:'六角柱',tube:'パイプ',torus:'リング',text:'文字',pyramid:'四角すい',wedge:'くさび',halfcylinder:'半円柱',hemisphere:'半球',thinring:'薄いリング',pentagon:'五角柱',icosa:'二十面体',octa:'八面体',dodeca:'十二面体',star:'星形',starpeak:'立体スター',heart:'ハート',cup:'くり抜き円柱',gem:'宝石',paraboloid:'放物面',frustum:'角すい台',arch:'アーチ',spin:'回転体・こま',wave:'波形',tetra:'三角すい'};const flat=['star','starpeak','heart','thinring','gem','wave','sketch'];return {id:newId(),type,name:names[type]||'図形',w:type==='text'?56:type==='wave'?42:25,d:type==='text'?16:25,h:type==='text'?3:flat.includes(type)?8:25,x:0,y:0,z:0,angle:0,hole:false,...(type==='text'?{text:'名前'}:{})};}
+function defaultRec(type){const names={box:'ボックス',cylinder:'円柱',sphere:'球',cone:'円すい',roof:'屋根',hex:'六角柱',tube:'パイプ',torus:'リング',text:'文字',pyramid:'四角すい',wedge:'くさび',halfcylinder:'半円柱',hemisphere:'半球',thinring:'薄いリング',pentagon:'五角柱',icosa:'二十面体',octa:'八面体',dodeca:'十二面体',star:'星形',starpeak:'立体スター',heart:'ハート',cup:'くり抜き円柱',gem:'宝石',paraboloid:'放物面',frustum:'角すい台',arch:'アーチ',spin:'回転体・こま',wave:'波形',tetra:'三角すい'};const flat=['star','starpeak','heart','thinring','gem','wave','sketch'];return {id:newId(),type,name:names[type]||'図形',w:type==='text'?56:type==='wave'?42:25,d:type==='text'?16:25,h:type==='text'?3:flat.includes(type)?8:25,x:0,y:0,z:0,angle:0,angleX:0,angleY:0,hole:false,...(type==='text'?{text:'名前'}:{})};}
 
 // 文字を端末の日本語フォントからオフライン形状化する。Canvas raster → 境界線 → 閉じた押し出し形状。
 // 同梱フォントなしで、日本語・英数字をiPad / Chromebookで立体化できる。
@@ -549,7 +588,7 @@ function geometryOf(rec){let geom;
  else throw Error('未対応の図形タイプ: '+rec.type);
  geom.computeBoundingBox();geom.computeVertexNormals();return geom;}
 function addRec(rec,select=true){if(items.length>=150)throw Error('試作版では150個まで');const mat=new THREE.MeshStandardMaterial({color:0x4eaff4,roughness:.55,metalness:.02,side:THREE.DoubleSide,transparent:!!rec.hole,opacity:rec.hole?.32:1,depthWrite:!rec.hole});
- const mesh=new THREE.Mesh(geometryOf(rec),mat);mesh.userData.id=rec.id;mesh.position.set(rec.x,rec.y,rec.z);mesh.rotation.z=THREE.MathUtils.degToRad(rec.angle);scene.add(mesh);items.push({...rec,mesh});if(select)setSelected(rec.id,false);$('emptyHelp').hidden=true;renderShapeList();return mesh;}
+ const mesh=new THREE.Mesh(geometryOf(rec),mat);mesh.userData.id=rec.id;mesh.position.set(rec.x,rec.y,rec.z);mesh.rotation.order='XYZ';mesh.rotation.set(THREE.MathUtils.degToRad(Number(rec.angleX)||0),THREE.MathUtils.degToRad(Number(rec.angleY)||0),THREE.MathUtils.degToRad(Number(rec.angle)||0),'XYZ');scene.add(mesh);items.push({...rec,mesh});if(select)setSelected(rec.id,false);$('emptyHelp').hidden=true;renderShapeList();return mesh;}
 function removeAll(){soloId=null;for(const it of items){scene.remove(it.mesh);it.mesh.geometry.dispose();it.mesh.material.dispose();}items.length=0;setSelection([]);$('emptyHelp').hidden=false;}
 function chosenItems(){return items.filter(it=>selectedIds.has(it.id));}
 function syncSoloView(){
@@ -595,7 +634,7 @@ function setSelection(ids){
  $('textEditPanel').hidden=single?.type!=='text';if(single?.type==='text')$('textContent').value=single.text||'名前';
  const solidCount=picked.filter(i=>!i.hole).length,holeCount=picked.length-solidCount;
  $('selectionInfo').textContent=!picked.length?'図形を選択してください。':single?`${single.name}（${single.hole?'穴（切り抜き用）':'実体'}）`:`${picked.length}個を選択中（実体 ${solidCount}・穴 ${holeCount}）`;
- if(single){const values={dimX:single.w,dimY:single.d,dimZ:single.h,posX:single.x,posY:single.y,posZ:single.z,angle:single.angle};for(const id of selectInputs)$(id).value=Number(values[id].toFixed(3));}
+ if(single){const values={dimX:single.w,dimY:single.d,dimZ:single.h,posX:single.x,posY:single.y,posZ:single.z,angleX:Number(single.angleX)||0,angleY:Number(single.angleY)||0,angle:Number(single.angle)||0};for(const id of selectInputs)$(id).value=Number(values[id].toFixed(3));}
  $('holeToggle').disabled=!single;
  $('holeToggle').textContent=single?.hole?'● 実体に戻す':'◌ 穴にする';
  $('holeToggle').classList.toggle('is-hole',!!single?.hole);
@@ -604,7 +643,8 @@ function setSelection(ids){
  $('applyBoolean').textContent=holeCount?'🔗 結合・穴あけ':'🔗 実体を結合';
  $('combineTop').textContent=holeCount?'🔗 結合・穴あけ':'🔗 結合';
  if(single&&!rangeSelectActive&&activeMode!=='scale')transform.attach(single.mesh);else transform.detach();
- renderShapeList();updateResizeHandles();
+ syncRotationGizmo();
+ renderShapeList();updateResizeHandles();updateRotationAxisOverlay();
 }
 function setSelected(id,showDimensions=true){dimensionLabelsVisible=!!id&&!!showDimensions;setSelection(id?[id]:[]);}
 function toggleSelected(id){const ids=new Set(selectedIds);if(ids.has(id))ids.delete(id);else ids.add(id);dimensionLabelsVisible=ids.size===1;setSelection([...ids]);}
@@ -737,7 +777,31 @@ function updateResizeHandles(){
  }
 }
 
-function applyRec(it){const old=it.mesh.geometry;it.mesh.geometry=geometryOf(it);old.dispose();it.mesh.position.set(it.x,it.y,it.z);it.mesh.rotation.z=THREE.MathUtils.degToRad(it.angle);it.mesh.material.transparent=!!it.hole;it.mesh.material.opacity=it.hole?.32:1;it.mesh.material.depthWrite=!it.hole;updateResizeHandles();}
+function updateRotationAxisOverlay(){
+ const panel=$('rotationAxisOverlay');
+ const it=selected();
+ const show=!!it&&selectedIds.size===1&&!rangeSelectActive&&!armedShape&&!placing&&!transform.dragging&&$('cadPage').classList.contains('active');
+ panel.hidden=!show;
+ if(!show)return;
+ it.mesh.updateMatrixWorld(true);
+ const center=it.mesh.localToWorld(new THREE.Vector3(0,0,it.h/2)).project(camera);
+ if(!Number.isFinite(center.x)||!Number.isFinite(center.y)||center.z>1||center.z< -1){panel.hidden=true;return;}
+ const rect=$('canvasWrap').getBoundingClientRect();
+ const px=(center.x+1)*rect.width/2,py=(1-center.y)*rect.height/2;
+ if(px<0||px>rect.width||py<0||py>rect.height){panel.hidden=true;return;}
+ panel.style.left=Math.max(130,Math.min(rect.width-130,px))+'px';
+ panel.style.top=Math.max(55,Math.min(rect.height-8,py-40))+'px';
+ const key=activeRotationAxis==='x'?'angleX':activeRotationAxis==='y'?'angleY':'angle';
+ $('rotateAxisAngle').textContent=(activeMode==='rotate'?activeRotationAxis.toUpperCase()+' ':'')+Number(Number(it[key]||0).toFixed(1))+'°';
+}
+function applyRec(it){
+ const old=it.mesh.geometry;it.mesh.geometry=geometryOf(it);old.dispose();
+ it.mesh.position.set(it.x,it.y,it.z);
+ it.mesh.rotation.order='XYZ';
+ it.mesh.rotation.set(THREE.MathUtils.degToRad(Number(it.angleX)||0),THREE.MathUtils.degToRad(Number(it.angleY)||0),THREE.MathUtils.degToRad(Number(it.angle)||0),'XYZ');
+ it.mesh.material.transparent=!!it.hole;it.mesh.material.opacity=it.hole?.32:1;it.mesh.material.depthWrite=!it.hole;
+ updateResizeHandles();updateRotationAxisOverlay();
+}
 function serializeRec(it){const {mesh,...clean}=it;return JSON.parse(JSON.stringify(clean));}
 function documentData(){return {schema:'manabi3d-project',version:1,units:'mm',title:'untitled',savedAt:new Date().toISOString(),items:items.map(serializeRec)};}
 let autosaveHandle=0;
@@ -749,9 +813,17 @@ function undoSnapshot(){
   $('undoObjects').disabled=false;
  }catch{}
 }
-function updateSelected(){const it=selected();if(!it)return;const vs=selectInputs.map(id=>Number($(id).value));if(vs.some(v=>!Number.isFinite(v))){notify('数値を入力してください');return;}let [w,d,h,x,y,z,angle]=vs;
- if([w,d,h].some(v=>v<.1||v>500)||[x,y,z].some(v=>Math.abs(v)>1000)){notify('大きさ0.1～500mm、位置±1000mmの範囲で指定してください');return;}
- undoSnapshot();Object.assign(it,{w,d,h,x,y,z,angle});applyRec(it);autosave();notify('寸法と配置を更新しました');}
+function updateSelected(){
+ const it=selected();if(!it)return;const vs=selectInputs.map(id=>Number($(id).value));
+ if(vs.some(v=>!Number.isFinite(v))){notify('数値を入力してください');return;}
+ const [w,d,h,x,y,z,angleX,angleY,angle]=vs;
+ if([w,d,h].some(v=>v<.1||v>500)||[x,y,z].some(v=>Math.abs(v)>1000)||[angleX,angleY,angle].some(v=>Math.abs(v)>36000)){
+  notify('大きさ0.1〜500mm、位置±1000mm、回転角度±36000°の範囲で指定してください');return;
+ }
+ undoSnapshot();Object.assign(it,{w,d,h,x,y,z,angleX,angleY,angle});
+ applyRec(it);setSelection([it.id]);autosave();
+ notify(`寸法・配置・回転を更新しました（X:${angleX}° Y:${angleY}° Z:${angle}°）`);
+}
 for(const id of selectInputs)$(id).addEventListener('change',updateSelected);
 function frameSelected(){const it=selected();if(!it){notify('図形を選択してください');return;}
  const center=new THREE.Vector3(it.x,it.y,it.z+it.h/2);
@@ -1048,7 +1120,7 @@ function drawPlacementGhost(rec){
  });
  placementGhost=new THREE.Mesh(geometry,material);
  placementGhost.position.set(rec.x,rec.y,rec.z);
- placementGhost.rotation.z=THREE.MathUtils.degToRad(rec.angle);
+ placementGhost.rotation.order='XYZ';placementGhost.rotation.set(THREE.MathUtils.degToRad(Number(rec.angleX)||0),THREE.MathUtils.degToRad(Number(rec.angleY)||0),THREE.MathUtils.degToRad(Number(rec.angle)||0),'XYZ');
  placementGhost.renderOrder=5;
  scene.add(placementGhost);
 }
@@ -1254,7 +1326,7 @@ window.addEventListener('pointercancel',endRangeSelection);
 renderer.domElement.addEventListener('pointerdown',e=>{if(rangeSelectActive||armedShape||placing)return;pointerDown={x:e.clientX,y:e.clientY};});
 renderer.domElement.addEventListener('pointerup',e=>{if(rangeSelectActive||armedShape||placing)return;if(!pointerDown)return;const dx=e.clientX-pointerDown.x,dy=e.clientY-pointerDown.y;pointerDown=null;if(Math.hypot(dx,dy)>5||transform.dragging)return;const r=renderer.domElement.getBoundingClientRect();cursor.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(cursor,camera);const hits=ray.intersectObjects(items.map(i=>i.mesh),false);if(e.shiftKey||e.ctrlKey||e.metaKey){if(hits.length)toggleSelected(hits[0].object.userData.id);}else{const id=hits.length?hits[0].object.userData.id:null;if(id&&currentId===id&&selectedIds.size===1){dimensionLabelsVisible=!dimensionLabelsVisible;setSelection([id]);}else setSelected(id);}});
 function resize(){const rect=$('canvasWrap').getBoundingClientRect();if(rect.width<1||rect.height<1)return;renderer.setSize(rect.width,rect.height,false);camera.aspect=rect.width/rect.height;camera.updateProjectionMatrix();}
-new ResizeObserver(resize).observe($('canvasWrap'));function render(){requestAnimationFrame(render);controls.update();renderer.render(scene,camera);updateResizeHandles();}resize();render();
+new ResizeObserver(resize).observe($('canvasWrap'));function render(){requestAnimationFrame(render);controls.update();renderer.render(scene,camera);updateResizeHandles();updateRotationAxisOverlay();}resize();render();
 function download(data,name,mime){const blob=data instanceof Blob?data:new Blob([data],{type:mime});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),20000);}
 async function composeGeometry(source=items){
  const solids=source.filter(i=>!i.hole),holes=source.filter(i=>i.hole);
@@ -1322,8 +1394,8 @@ $('combineTop').onclick=combineSelection;
 $('saveStl').onclick=async()=>{try{const stl=await toStlBuffer();download(stl,'manabi3d-model.stl','model/stl');notify('結合・穴あけを反映したSTLを端末に保存しました');}catch(e){notify(`STL保存失敗：${e.message}`);}};
 $('saveProject').onclick=()=>{download(JSON.stringify(documentData(),null,2),'manabi3d-project.m3d.json','application/json');notify('再編集用プロジェクトを端末に保存しました');};
 function validateProject(raw){const doc=JSON.parse(raw);if(doc.schema!=='manabi3d-project'||doc.version!==1||!Array.isArray(doc.items)||doc.items.length>150)throw Error('このバージョンで読み込めない編集データです');
- const result=[];for(const old of doc.items){const type=old.type;if(!["box","cylinder","sphere","cone","roof","hex","tube","torus","text","imported","sketch","pyramid","wedge","halfcylinder","hemisphere","thinring","pentagon","icosa","octa","dodeca","star","starpeak","heart","cup","gem","paraboloid","frustum","arch","spin","wave","tetra"].includes(type))throw Error('未対応の図形です');const rec={id:newId(),type,name:String(old.name||type).slice(0,60),w:Number(old.w),d:Number(old.d),h:Number(old.h),x:Number(old.x),y:Number(old.y),z:Number(old.z),angle:Number(old.angle),hole:!!old.hole,...(type==='text'?{text:String(old.text||'名前').slice(0,20)}:{})};
- if([rec.w,rec.d,rec.h].some(v=>!Number.isFinite(v)||v<=0||v>1000)||[rec.x,rec.y,rec.z,rec.angle].some(v=>!Number.isFinite(v)||Math.abs(v)>10000))throw Error('数値に不正があります');if(type==='sketch'){
+ const result=[];for(const old of doc.items){const type=old.type;if(!["box","cylinder","sphere","cone","roof","hex","tube","torus","text","imported","sketch","pyramid","wedge","halfcylinder","hemisphere","thinring","pentagon","icosa","octa","dodeca","star","starpeak","heart","cup","gem","paraboloid","frustum","arch","spin","wave","tetra"].includes(type))throw Error('未対応の図形です');const rec={id:newId(),type,name:String(old.name||type).slice(0,60),w:Number(old.w),d:Number(old.d),h:Number(old.h),x:Number(old.x),y:Number(old.y),z:Number(old.z),angle:Number(old.angle??0),angleX:Number(old.angleX??0),angleY:Number(old.angleY??0),hole:!!old.hole,...(type==='text'?{text:String(old.text||'名前').slice(0,20)}:{})};
+ if([rec.w,rec.d,rec.h].some(v=>!Number.isFinite(v)||v<=0||v>1000)||[rec.x,rec.y,rec.z].some(v=>!Number.isFinite(v)||Math.abs(v)>10000)||[rec.angleX,rec.angleY,rec.angle].some(v=>!Number.isFinite(v)||Math.abs(v)>36000))throw Error('数値に不正があります');if(type==='sketch'){
   if(!Array.isArray(old.path)||old.path.length<3||old.path.length>350||old.path.some(p=>!Array.isArray(p)||p.length!==2||p.some(n=>!Number.isFinite(n)||Math.abs(n)>1)))throw Error('手描きの輪郭データが不正です');
   rec.path=old.path.map(p=>p.slice());
  }

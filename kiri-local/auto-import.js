@@ -19,6 +19,9 @@
  document.body.append(back,status);
 
  let api=null,saveTimer=0;
+ // A slicer-local clipboard: independent snapshots, without relying on OS
+ // clipboard permissions (particularly restricted in iPad Safari).
+ let copiedWidgets=null,pasteCount=0;
  const manager=document.createElement('details');
  manager.id='manabiModelManager';
  manager.style.cssText='position:fixed;left:12px;bottom:69px;z-index:2147483600;width:min(324px,calc(100vw - 24px));max-height:46vh;overflow:auto;background:#ffffff;color:#193450;border:1px solid #90acc5;border-radius:12px;box-shadow:0 6px 22px #0003;font:14px/1.5 system-ui';
@@ -29,7 +32,7 @@
  body.style.cssText='padding:9px 11px;display:flex;flex-direction:column;gap:8px';
  const tip=document.createElement('div');
  tip.style.cssText='font-size:12px;color:#476481';
- tip.textContent='不要なモデルを1つずつ削除できます。削除後は再スライスしてください。';
+ tip.textContent='不要なモデルの削除・コピー・貼り付けができます。外付けキーボードは Ctrl/⌘+C・V に対応。操作後は再スライスしてください。';
  const list=document.createElement('div');list.id='manabiModelManageList';
  list.style.cssText='display:flex;flex-direction:column;gap:7px';
  const toolbar=document.createElement('div');
@@ -58,7 +61,13 @@
   const clearAll=button('全部削除',()=>{
    if(window.confirm('スライス画面にあるモデルをすべて削除しますか？\nCADで作成した元の作品は消えません。'))removeModels(all());
   },'background:#fff1f0;color:#992e2e;border-color:#efb6b6');
-  toolbar.append(removeSelected,clearAll);
+  const copy=button('⧉ コピー',copySlicerSelection,'flex:1');
+  copy.disabled=selected.length===0;
+  if(copy.disabled)copy.style.opacity='.5';
+  const paste=button('▣ 貼り付け',pasteSlicerClipboard,'flex:1');
+  paste.disabled=!copiedWidgets?.length;
+  if(paste.disabled)paste.style.opacity='.5';
+  toolbar.append(copy,paste,removeSelected,clearAll);
   ws.forEach((w,i)=>{
    const row=document.createElement('div');
    row.style.cssText='display:flex;align-items:center;gap:6px;padding:6px;border:1px solid #dae5ee;border-radius:8px';
@@ -75,6 +84,64 @@
    row.append(name,chosen,del);list.append(row);
   });
  };
+function copySlicerSelection(){
+  if(!api)return false;
+  if(!api.view.is_arrange())api.view.set_arrange();
+  const selected=api.selection?.widgets?.()||[];
+  if(!selected.length){setStatus('コピーするモデルを「選択」から指定してください。');return false;}
+  try{
+   // Native Kiri meshes already contain rotations and scaling in geometry.
+   // Store a snapshot so subsequent edits/deletes cannot change the copy.
+   if(copiedWidgets)for(const old of copiedWidgets)old.geo.dispose();
+   copiedWidgets=selected.map(w=>({
+    geo:w.mesh.geometry.clone(),
+    meta:{file:String(w.meta?.file||'CADモデル'),vertices:w.meta?.vertices},
+    anno:w.annotations?.()||{extruder:0},
+    pos:{...w.track.pos}
+   }));
+   pasteCount=0;
+   setStatus(copiedWidgets.length+'個のモデルをコピーしました。');
+   refresh();return true;
+  }catch(e){setStatus('モデルのコピーに失敗：'+(e.message||e));return false;}
+ }
+ function pasteSlicerClipboard(){
+  if(!api||!copiedWidgets?.length){setStatus('コピーしたモデルがありません。');return false;}
+  if(!api.view.is_arrange())api.view.set_arrange();
+  // Avoid runaway duplicate geometry / slow Safari slicing.
+  if(all().length+copiedWidgets.length>150){setStatus('モデルは150個までです。不要なものを削除してね。');return false;}
+  const offset=15*(pasteCount+1),created=[];
+  try{
+   for(let i=0;i<copiedWidgets.length;i++){
+    const r=copiedWidgets[i];
+    const w=api.new.widget().loadGeometry(r.geo.clone());
+    w.meta.file=r.meta.file+'（コピー）';
+    w.meta.vertices=r.meta.vertices;
+    w.anno={...r.anno};
+    // No auto-layout: preserve relative placement of multiple widgets.
+    w.move(r.pos.x+offset,r.pos.y+offset,r.pos.z,true);
+    api.platform.add(w,i>0,true);
+    created.push(w);
+   }
+   pasteCount++;
+   scheduleSave();refresh();
+   setStatus(created.length+'個をX・Y方向に'+offset+'mmずらして貼り付けました。再スライスしてください。');
+   manager.open=true;return true;
+  }catch(e){
+   if(created.length){try{api.platform.delete(created);}catch{}}
+   refresh();setStatus('貼り付け失敗：'+(e.message||e));return false;
+  }
+ }
+ window.addEventListener('keydown',e=>{
+  const el=e.target;
+  if(!api||!manager.isConnected||!api.view.is_arrange()||!((e.ctrlKey||e.metaKey)&&!e.altKey))return;
+  if(['INPUT','TEXTAREA','SELECT'].includes(el?.tagName)||el?.isContentEditable)return;
+  const key=e.key.toLowerCase();
+  if(key==='c'&&api.selection?.widgets?.().length){
+   e.preventDefault();e.stopImmediatePropagation();copySlicerSelection();
+  }else if(key==='v'&&copiedWidgets?.length){
+   e.preventDefault();e.stopImmediatePropagation();pasteSlicerClipboard();
+  }
+ },true);
  const scheduleSave=()=>{
   clearTimeout(saveTimer);
   saveTimer=setTimeout(()=>{

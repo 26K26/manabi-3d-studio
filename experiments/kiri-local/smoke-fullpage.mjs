@@ -55,6 +55,9 @@ try{
  // Clipboard regression: UI copy + hardware-keyboard Ctrl+V.
  await page.waitForFunction(()=>document.getElementById('manabiImportStatus')?.textContent?.includes('最新CADモデルを1個読み込みました'),null,{timeout:15000});
  await page.locator('#manabiModelManagerSummary').click();
+ // Automatic imports need not leave a selection in Kiri. Choose via the
+ // same visible model-management list a person would use.
+ await page.locator('#manabiModelManageList button').filter({hasText:'選択'}).first().click();
  await page.waitForFunction(()=>window.kiri.api.selection.widgets().length===1,null,{timeout:10000});
  await page.locator('#manabiModelManager button').filter({hasText:'⧉ コピー'}).click();
  await page.keyboard.press('Control+v');

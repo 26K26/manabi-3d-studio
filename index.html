@@ -694,6 +694,115 @@ function addRec(rec,select=true){
 }
 function removeAll(){soloId=null;for(const it of items){scene.remove(it.mesh);it.mesh.geometry.dispose();it.mesh.material.dispose();}items.length=0;setSelection([]);$('emptyHelp').hidden=false;}
 function chosenItems(){return items.filter(it=>selectedIds.has(it.id));}
+
+// Tinkercad-style palette, used both before insertion and after selection.
+// We persist #RRGGBB in the project; an STL stays uncolored by specification.
+const SHAPE_COLOR_PRESETS=[
+ '#EA9891','#F6BE9C','#F5DDA0','#B8DBAA','#A6E1E6','#81C9DC','#A4BCEC','#CFB2E7','#EBAED3','#E3C197','#F5F6F7','#B3BABF',
+ '#E83641','#F78127','#FFD329','#3DB64D','#65C6CE','#00A7D8','#3B52AA','#8343A1','#D50080','#AC8458','#DFE5E8','#696E75',
+ '#9D1F30','#EB5125','#E8AA30','#0D693D','#1A515B','#0079AB','#1A316C','#522C78','#9A1E5D','#75421E','#B9C4CD','#282E34'
+];
+function refreshObjectAppearance(it,isSelected=selectedIds.has(it.id)){
+ const material=it.mesh?.material;if(!material)return;
+ // The chosen color remains intact even while selected. Holes are always
+ // neutral semi-transparent gray, but do not discard their stored color.
+ material.color.set(it.hole?'#A3ACB6':normalizeShapeColor(it.color));
+ material.transparent=!!it.hole;
+ material.opacity=it.hole?.32:1;
+ material.depthWrite=!it.hole;
+ material.emissive.setHex(isSelected?0x304459:0);
+ material.emissiveIntensity=isSelected?.15:0;
+ material.needsUpdate=true;
+}
+function refreshShapeColorControls(){
+ const incoming=normalizeShapeColor(insertionShapeColor);
+ $('newColorSwatch').style.background=incoming;
+ $('newColorValue').textContent=incoming;
+ const chosen=chosenItems();
+ $('selectedShapeColor').hidden=chosen.length===0;
+ if(chosen.length){
+  const colors=[...new Set(chosen.map(it=>normalizeShapeColor(it.color)))];
+  const mixed=colors.length>1;
+  $('selectedColorSwatch').classList.toggle('mixed',mixed);
+  if(!mixed)$('selectedColorSwatch').style.background=colors[0];
+  else $('selectedColorSwatch').style.removeProperty('background');
+  $('selectedColorValue').textContent=mixed?'色が混在':colors[0];
+  $('selectedShapeColor').title=chosen.length>1?chosen.length+'個の図形の色を一括変更':'選択した図形の色を変更';
+ }
+}
+function commitShapeColor(color){
+ const fixed=normalizeShapeColor(color,null);
+ if(!fixed){notify('カラーコードは #RRGGBB 形式で入力してください');return false;}
+ if(shapeColorPickerMode==='new'){
+  insertionShapeColor=fixed;
+  // If a placement gesture is active, update its preview and final record
+  // without moving or recreating the model.
+  if(placing?.rec){placing.rec.color=fixed;drawPlacementGhost(placing.rec);}
+  refreshShapeColorControls();
+  notify('これから追加する実体の色を '+fixed+' に設定しました。');
+ }else{
+  const chosen=chosenItems();
+  if(!chosen.length){notify('色を変更する図形を選択してください');return false;}
+  if(chosen.every(it=>normalizeShapeColor(it.color)===fixed)){
+   notify('選択中の図形はすでに '+fixed+' です。');
+  }else{
+   undoSnapshot();
+   for(const it of chosen){it.color=fixed;refreshObjectAppearance(it,true);}
+   refreshShapeColorControls();
+   renderShapeList();autosave();
+   notify(chosen.length+'個の図形の色を '+fixed+' に変更しました。元に戻す操作にも対応。');
+  }
+ }
+ return true;
+}
+function openShapeColorPicker(mode){
+ if(!['new','selection'].includes(mode))return;
+ const chosen=chosenItems();
+ if(mode==='selection'&&!chosen.length){notify('色を変更する図形を選択してください');return;}
+ shapeColorPickerMode=mode;
+ const color=mode==='new'?normalizeShapeColor(insertionShapeColor):normalizeShapeColor(chosen[0].color);
+ $('shapeColorTitle').textContent=mode==='new'?'これから置く図形の色':'選択した図形の色';
+ $('shapeColorHelp').textContent=mode==='new'?'ここで選んだ色が、次に追加する立体の色になります。':'選択中の'+chosen.length+'個の図形の色を変更します。';
+ $('shapeCustomColor').value=color.toLowerCase();
+ $('shapeHexColor').value=color;
+ updatePresetSelection(color);
+ $('shapeColorDialog').showModal();
+}
+function updatePresetSelection(color){
+ const normalized=normalizeShapeColor(color);
+ for(const b of $('shapeColorPresets').children){
+  b.setAttribute('aria-pressed',String(b.dataset.color===normalized));
+ }
+}
+for(const value of SHAPE_COLOR_PRESETS){
+ const b=document.createElement('button');
+ b.type='button';b.dataset.color=value;b.style.backgroundColor=value;
+ b.setAttribute('aria-label','色 '+value);
+ b.setAttribute('aria-pressed','false');
+ b.title=value;
+ b.onclick=()=>{if(commitShapeColor(value))$('shapeColorDialog').close();};
+ $('shapeColorPresets').append(b);
+}
+$('newShapeColor').onclick=()=>openShapeColorPicker('new');
+$('selectedShapeColor').onclick=()=>openShapeColorPicker('selection');
+$('shapeColorClose').onclick=()=>$('shapeColorDialog').close();
+$('shapeColorCancel').onclick=()=>$('shapeColorDialog').close();
+$('shapeCustomColor').addEventListener('input',()=>{
+ const color=normalizeShapeColor($('shapeCustomColor').value);
+ $('shapeHexColor').value=color;updatePresetSelection(color);
+});
+$('shapeHexColor').addEventListener('input',()=>{
+ const raw=$('shapeHexColor').value;
+ if(/^#[0-9a-fA-F]{6}$/.test(raw)){
+  $('shapeCustomColor').value=raw.toLowerCase();
+  updatePresetSelection(raw);
+ }
+});
+$('shapeColorApply').onclick=()=>{
+ if(commitShapeColor($('shapeHexColor').value))$('shapeColorDialog').close();
+};
+refreshShapeColorControls();
+
 function syncSoloView(){
  // Remove solo mode when the selected model is gone or selection is no longer singular.
  if(soloId!==null && (selectedIds.size!==1 || !selectedIds.has(soloId) || !items.some(it=>it.id===soloId)))soloId=null;

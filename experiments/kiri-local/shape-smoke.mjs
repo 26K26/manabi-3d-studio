@@ -71,6 +71,30 @@ try{
  const remaining=await page.locator('#shapeList button').count();
  if(remaining!==2)throw Error('Backspace in number field incorrectly deleted CAD models');
  console.log('PASS: toolbar undo, single Delete, multi Backspace, context delete, autosave, typing safety');
+ // Rotate around THREE independently selectable axes. Verify the same
+ // saved object keeps all 3 angles, even after copy, undo and page reload.
+ await page.locator('#shapeList button').first().click();
+ await page.locator('#rotateAxisX').click();
+ if(await page.locator('#rotateAxisX').getAttribute('aria-pressed')!=='true')throw Error('X axis ring was not selected');
+ await page.locator('#rotatePlus').click();
+ if(Number(await page.locator('#angleX').inputValue())!==15)throw Error('X rotation not applied');
+ if(Number(await page.locator('#angleY').inputValue())!==0)throw Error('X rotation unexpectedly changed Y');
+ await page.locator('#rotateAxisY').click();
+ await page.locator('#rotatePlus').click();
+ if(Number(await page.locator('#angleY').inputValue())!==15)throw Error('Y rotation not applied');
+ await page.locator('#rotateAxisZ').click();
+ await page.locator('#rotateMinus').click();
+ if(Number(await page.locator('#angle').inputValue())!==-15)throw Error('Z rotation not applied');
+ await page.waitForTimeout(650);
+ let rotated=await page.evaluate(()=>JSON.parse(localStorage.getItem('manabi3d-cad-draft-v1')).items.find(v=>Math.abs(v.angleX)===15));
+ if(!rotated||rotated.angleX!==15||rotated.angleY!==15||rotated.angle!==-15)throw Error('Rotation project persistence failed: '+JSON.stringify(rotated));
+ // Check backward compatibility with old projects containing Z rotation only.
+ await page.reload({waitUntil:'domcontentloaded',timeout:45000});
+ await page.waitForFunction(()=>window.__manabiCadReady===true&&document.querySelectorAll('#shapeList button').length===2,null,{timeout:60000});
+ await page.locator('#shapeList button').first().click();
+ if(Number(await page.locator('#angleX').inputValue())!==15||Number(await page.locator('#angleY').inputValue())!==15||Number(await page.locator('#angle').inputValue())!==-15)throw Error('XYZ angles changed across reload');
+ console.log('PASS: X/Y/Z axis buttons, independent 15-degree rotate, model persistence and browser reload');
+
 
 }catch(e){
  console.error('CAD SMOKE FAILED',e);

@@ -1,0 +1,27 @@
+name: CAD shape library browser smoke
+on:
+  push:
+    branches:
+      - experiment/kiri-local
+    paths:
+      - 'index.html'
+      - 'experiments/kiri-local/shape-smoke.mjs'
+      - '.github/workflows/shape-library-smoke.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  shapes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install lightweight browser harness
+        run: npm install --no-save --no-audit --no-fund playwright-core
+      - name: Verify CAD solids, editable projects and touch sketch
+        run: |
+          CHROME_BIN="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          CHROME_BIN="$CHROME_BIN" node experiments/kiri-local/shape-smoke.mjs

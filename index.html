@@ -1439,6 +1439,33 @@ $('testKiri').onclick=()=>{
 $('sendToKiri').onclick=transfer;$('toSlice').onclick=enterFullPageKiri;
 // Restore small drafts. No account and no server. Save explicit project files for long-term work.
 try{const saved=localStorage.getItem('manabi3d-cad-draft-v1');if(saved){loadProjectString(saved);notify('このブラウザの前回の編集内容を復元しました');}else{notify('準備完了。図形を追加して始めよう。');}}catch(e){notify('ブラウザの保存データは使用できません。手動保存は可能です。');}
+
+if(new URLSearchParams(location.search).has('testShapes')){
+ window.__manabiTestShapes=()=>{
+  const types=['pyramid','wedge','halfcylinder','hemisphere','thinring','pentagon','icosa','octa','dodeca','star','starpeak','heart','cup','gem','paraboloid','frustum','arch','spin','wave','tetra','sketch'];
+  return types.map(type=>{
+   let g;
+   try{
+    const rec=defaultRec(type);
+    if(type==='sketch'){rec.path=[[.2,.2],[.8,.2],[.8,.7],[.5,.88],[.2,.7]];rec.name='テスト手描き';}
+    g=geometryOf(rec);
+    const b=g.boundingBox;const dx=b.max.x-b.min.x,dy=b.max.y-b.min.y,dz=b.max.z-b.min.z;
+    const n=g.index?g.index.count/3:g.getAttribute('position').count/3;
+    if(n<4)throw Error('no usable triangles');
+    if([dx,dy,dz].some(v=>!Number.isFinite(v)||v<.001))throw Error('degenerate dimensions');
+    if(Math.abs(dx-rec.w)>.002||Math.abs(dy-rec.d)>.002||Math.abs(dz-rec.h)>.002)throw Error('dimensions incorrect');
+    const stl=new STLExporter().parse(new THREE.Mesh(g),{binary:true});
+    if(!(stl instanceof DataView||stl instanceof ArrayBuffer||stl?.byteLength>=84))throw Error('STL export failed');
+    const serialized=JSON.stringify({schema:'manabi3d-project',version:1,items:[rec]});
+    const decoded=validateProject(serialized);
+    if(decoded.length!==1||decoded[0].type!==type)throw Error('project roundtrip failed');
+    return {type,ok:true,triangles:n,stlBytes:stl.byteLength||0};
+   }catch(e){return {type,ok:false,error:e.message||String(e)};}
+   finally{g?.dispose?.();}
+  });
+ };
+}
+
 window.__manabiCadReady=true;
 window.addEventListener('keydown',e=>{
  const t=e.target,typing=['INPUT','TEXTAREA','SELECT'].includes(t?.tagName)||!!t?.isContentEditable;

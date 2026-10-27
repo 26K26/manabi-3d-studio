@@ -777,6 +777,23 @@ function updateResizeHandles(){
  }
 }
 
+function updateRotationAxisOverlay(){
+ const panel=$('rotationAxisOverlay');
+ const it=selected();
+ const show=!!it&&selectedIds.size===1&&!rangeSelectActive&&!armedShape&&!placing&&!transform.dragging&&$('cadPage').classList.contains('active');
+ panel.hidden=!show;
+ if(!show)return;
+ it.mesh.updateMatrixWorld(true);
+ const center=it.mesh.localToWorld(new THREE.Vector3(0,0,it.h/2)).project(camera);
+ if(!Number.isFinite(center.x)||!Number.isFinite(center.y)||center.z>1||center.z< -1){panel.hidden=true;return;}
+ const rect=$('canvasWrap').getBoundingClientRect();
+ const px=(center.x+1)*rect.width/2,py=(1-center.y)*rect.height/2;
+ if(px<0||px>rect.width||py<0||py>rect.height){panel.hidden=true;return;}
+ panel.style.left=Math.max(130,Math.min(rect.width-130,px))+'px';
+ panel.style.top=Math.max(55,Math.min(rect.height-8,py-40))+'px';
+ const key=activeRotationAxis==='x'?'angleX':activeRotationAxis==='y'?'angleY':'angle';
+ $('rotateAxisAngle').textContent=(activeMode==='rotate'?activeRotationAxis.toUpperCase()+' ':'')+Number(Number(it[key]||0).toFixed(1))+'°';
+}
 function applyRec(it){
  const old=it.mesh.geometry;it.mesh.geometry=geometryOf(it);old.dispose();
  it.mesh.position.set(it.x,it.y,it.z);

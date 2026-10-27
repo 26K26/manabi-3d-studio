@@ -163,6 +163,32 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
 .alignAxisRow button{min-height:40px;padding:5px 2px;border:1px solid #c6d9ec;background:#f8fbff;font-size:11px;font-weight:650;border-radius:7px;touch-action:manipulation}
 .alignAxisRow button:hover,.alignAxisRow button:focus-visible{background:#dcecff;border-color:#438cd0}
 @media(max-width:690px){.alignOverlay{right:6px;top:6px;width:min(305px,calc(100% - 12px));padding:10px}.alignAxisRow button{font-size:10px;min-height:42px}}
+
+/* Student-friendly color palette for both new shapes and selected shapes. */
+.shapeColorTrigger{display:flex;align-items:center;gap:8px;width:100%;min-height:42px;background:#f8fbff;border:1px solid #c9dcec;border-radius:9px;padding:7px 10px;text-align:left;color:#294866;font-size:12px;margin:8px 0 12px;touch-action:manipulation}
+.shapeColorTrigger[hidden]{display:none!important}
+.shapeColorTrigger .colorChevron{margin-left:auto;color:#2678c6;font-size:11px;white-space:nowrap}
+.shapeColorTrigger strong{font-size:11px;color:#4c637c;font-variant-numeric:tabular-nums}
+.colorIndicator{display:inline-block;flex-shrink:0;width:27px;height:27px;background:#4eaff4;border:2px solid #fff;box-shadow:0 0 0 1px #a6bace,0 1px 4px #12283c25;border-radius:50%}
+.colorIndicator.mixed{background:conic-gradient(#eb5965 0 25%,#48b87a 25% 50%,#5e8be1 50% 75%,#f3c34f 75% 100%)!important}
+#shapeColorDialog{border:1px solid #b9cde2;border-radius:16px;box-shadow:0 20px 65px #1c34564b;background:#fff;color:#263d57;padding:16px 18px;max-width:min(520px,94vw);width:520px;max-height:88dvh;overflow:auto}
+#shapeColorDialog::backdrop{background:#18304c68}
+.shapeColorHeader{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.shapeColorHeader h3{font-size:16px;margin:2px 0}
+.shapeColorHeader button{font-size:24px;min-width:39px;min-height:39px;padding:2px;background:#f4f7fc;border:1px solid #dce4ee}
+#shapeColorHelp{font-size:12px;color:#657891;line-height:1.55;margin:8px 0 12px}
+.shapeColorSectionTitle{font-size:12px;font-weight:750;color:#344f6d;border-bottom:1px solid #d7e2ed;padding:8px 1px;margin:10px 0}
+.shapeColorPresets{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:8px}
+.shapeColorPresets button{display:block;min-width:0;aspect-ratio:1;border:3px solid #fff;border-radius:50%;padding:0;box-shadow:0 0 0 1px #bdcbd9;touch-action:manipulation}
+.shapeColorPresets button:hover,.shapeColorPresets button:focus-visible,.shapeColorPresets button[aria-pressed=true]{outline:2px solid #267dec;outline-offset:2px}
+.shapeCustomRow{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.shapeCustomRow label{font-size:11px;color:#526781}
+#shapeCustomColor{width:56px;height:40px;padding:2px;background:#fff;border:1px solid #aebfd2;border-radius:7px;cursor:pointer}
+#shapeHexColor{width:105px;min-height:39px;padding:7px;background:#fff;color:#334963;border:1px solid #aebfd2;border-radius:7px;font:600 12px ui-monospace,monospace}
+.shapeColorDialogActions{display:flex;justify-content:flex-end;gap:8px;margin-top:15px}
+.shapeColorDialogActions button{min-height:43px;font-size:13px}
+.shapeColorNote{font-size:10.5px;line-height:1.55;color:#60758c;margin:10px 0 0}
+@media(max-width:510px){.shapeColorPresets{grid-template-columns:repeat(8,minmax(0,1fr));gap:9px}#shapeColorDialog{padding:13px}.shapeCustomRow{gap:6px}}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","three-bvh-csg":"https://esm.sh/three-bvh-csg@0.0.18?external=three"}}
@@ -224,6 +250,7 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
       <button id="roleSolid" class="chosen" type="button" aria-pressed="true">■ 実体を置く</button>
       <button id="roleHole" type="button" aria-pressed="false">◌ 穴を置く</button>
     </div>
+    <button id="newShapeColor" class="shapeColorTrigger" type="button" title="このあと配置する実体の色を選ぶ"><span class="colorIndicator" id="newColorSwatch" aria-hidden="true"></span><span>挿入時の色</span><strong id="newColorValue">#4EAFF4</strong><span class="colorChevron">色を選ぶ ›</span></button>
     <div class="placeInfo" id="placeInfo">① 実体/穴を選ぶ → ② ドラッグで配置。またはタップ後、作業面で幅・奥行きを指定。</div>
     <div class="shapeGrid">
      <button type="button" draggable="false" data-shape="box"><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 4 35 12 35 28 20 37 5 28 5 12Z" fill="#bfdffb"/><path d="M20 4V20L5 12M20 20L35 12M20 20V37" fill="none" stroke="#3378bb" stroke-width="1.7"/></svg><span>ボックス</span></button>
@@ -265,7 +292,7 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
     </details>
    </div>
    <div id="editPanel">
-   <h2>図形の編集</h2><div id="selectionInfo" role="status">図形を選択してください。</div><button id="dimensionToggle" type="button" disabled aria-pressed="false" title="選択した図形の寸法ハンドルを表示・非表示">📏 寸法を表示</button>
+   <h2>図形の編集</h2><div id="selectionInfo" role="status">図形を選択してください。</div><button id="selectedShapeColor" class="shapeColorTrigger" type="button" hidden title="選択中の図形の色を変更（複数選択は一括変更）"><span class="colorIndicator" id="selectedColorSwatch" aria-hidden="true"></span><span>選択図形の色</span><strong id="selectedColorValue">#4EAFF4</strong><span class="colorChevron">変更 ›</span></button><button id="dimensionToggle" type="button" disabled aria-pressed="false" title="選択した図形の寸法ハンドルを表示・非表示">📏 寸法を表示</button>
    <div id="booleanTools"><button id="holeToggle" type="button" title="選択した図形を切り抜き用の穴にする">◌ 穴にする</button><button id="applyBoolean" type="button" disabled title="選択した実体を結合し、選択した穴を差し引く">🔗 選択図形を結合</button></div>
    <div id="propertyFields" hidden>
     <div id="textEditPanel" hidden><h3>文字（立体テキスト）</h3><label for="textContent" class="textFieldLabel">作品に入れる文字（20文字以内）</label><input id="textContent" type="text" maxlength="20" value="名前" placeholder="例：さくら、ABC、3年" autocomplete="off"><p class="hint">文字も実体・穴として扱えます。文字を置いた後に変更できます。長い文字は幅を調整してね。</p></div>
@@ -318,6 +345,16 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
 </section>
 </div>
 <footer><span id="message" role="status">起動準備中…</span><div class="links"><a href="https://classroom.google.com/" target="_blank" rel="noopener noreferrer">Classroom ↗</a><a href="https://loilonote.app/" target="_blank" rel="noopener noreferrer">ロイロノート ↗</a></div></footer>
+<dialog id="shapeColorDialog" aria-labelledby="shapeColorTitle">
+ <div class="shapeColorHeader"><h3 id="shapeColorTitle">図形の色</h3><button id="shapeColorClose" type="button" aria-label="色の選択を閉じる">×</button></div>
+ <p id="shapeColorHelp">プリセットを選ぶか、好きな色を指定してね。</p>
+ <div class="shapeColorSectionTitle">プリセット</div>
+ <div id="shapeColorPresets" class="shapeColorPresets" role="group" aria-label="色のプリセット"></div>
+ <div class="shapeColorSectionTitle">カスタムカラー</div>
+ <div class="shapeCustomRow"><label for="shapeCustomColor">自由に色を選択</label><input id="shapeCustomColor" type="color" value="#4eaff4" aria-label="自由な色の指定"><label for="shapeHexColor">HEX</label><input id="shapeHexColor" type="text" spellcheck="false" inputmode="text" maxlength="7" value="#4EAFF4" aria-label="16進数で色を指定"></div>
+ <div class="shapeColorDialogActions"><button id="shapeColorCancel" type="button">キャンセル</button><button id="shapeColorApply" class="primary" type="button">この色にする</button></div>
+ <p class="shapeColorNote">穴は編集時に灰色の半透明で表示。実体に戻すと選んだ色に戻るよ。色は編集データに保存されます（STLには色は含まれません）。</p>
+ </dialog>
 <dialog id="sketchDialog" aria-labelledby="sketchTitle">
  <h3 id="sketchTitle">✎ 手描き形状をつくる</h3>
  <p>指・マウス・Apple Pencilで輪郭を1筆で描いてね。最初と最後をつないで厚みのある立体にするよ。</p>

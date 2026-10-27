@@ -25,6 +25,15 @@ try{
  const result=await page.evaluate(()=>window.__manabiTestShapes());
  console.log('SHAPE TEST RESULTS '+JSON.stringify(result));
  if(result.length!==21||result.some(x=>!x.ok))throw Error('Shape checks failed: '+JSON.stringify(result.filter(x=>!x.ok)));
+ // Set the insertion color BEFORE placing a shape. Native color input is
+ // deliberately tested because iPad uses the same HTML5 control.
+ await page.locator('#newShapeColor').click();
+ if(!await page.locator('#shapeColorDialog').isVisible())throw Error('New shape palette did not open');
+ if(await page.locator('#shapeColorPresets button').count()!==36)throw Error('Expected 36 color presets');
+ await page.locator('#shapeCustomColor').fill('#a347c1');
+ await page.locator('#shapeColorApply').click();
+ if(await page.locator('#shapeColorDialog').isVisible())throw Error('Color picker stayed open');
+ if((await page.locator('#newColorValue').textContent()).trim()!=='#A347C1')throw Error('Insertion custom color was not selected');
  await page.locator('#shapeLibrary summary').click();
  await page.locator('#sketchTool').click();
  const b=await page.locator('#sketchCanvas').boundingBox();
@@ -37,6 +46,10 @@ try{
  await page.waitForFunction(()=>document.querySelectorAll('#shapeList button').length===1,null,{timeout:12000});
  await page.locator('#copyObjects').click();await page.locator('#pasteObjects').click();
  await page.waitForFunction(()=>document.querySelectorAll('#shapeList button').length===2,null,{timeout:12000});
+ const insertedColors=await page.evaluate(()=>window.__manabiColorSnapshot());
+ if(insertedColors.length!==2||insertedColors.some(c=>c.color!=='#A347C1'||c.display!=='A347C1'))throw Error('Copied and new shape color was not retained: '+JSON.stringify(insertedColors));
+ if(await page.evaluate(()=>window.__manabiLegacyColorCheck())!=='#4EAFF4')throw Error('Old project was not migrated to the default color');
+ console.log('PASS: 36 presets, native custom-color input, insertion color, copy color, legacy projects');
  console.log('PASS: all 20 new primitives, freehand polygon, saved STL, in-app copy/paste');
  // Delete one selected CAD shape with Delete; undo restores it.
  await page.locator('#shapeList button').first().click();
@@ -154,6 +167,41 @@ try{
  await page.locator('#alignClose').click();
  if(!await page.locator('#alignOverlay').isHidden())throw Error('Align overlay did not close');
  console.log('PASS: fixed-reference X center / Y max / Z min alignment on tilted models, autosave, panel close');
+ // Change both selected shapes in a single operation and verify color does
+ // not change to orange when selected.
+ await page.locator('#selectedShapeColor').click();
+ if(!await page.locator('#shapeColorDialog').isVisible())throw Error('Selected shape color picker did not open');
+ await page.locator('#shapeColorPresets [data-color="#FFD329"]').click();
+ let colors=await page.evaluate(()=>window.__manabiColorSnapshot());
+ if(colors.length!==2||colors.some(c=>c.color!=='#FFD329'||c.display!=='FFD329'))throw Error('Multi-selection recolor failed: '+JSON.stringify(colors));
+ await page.locator('#undoObjects').click();
+ colors=await page.evaluate(()=>window.__manabiColorSnapshot());
+ if(colors.some(c=>c.color!=='#A347C1'))throw Error('Undo failed to restore saved per-model colors: '+JSON.stringify(colors));
+ // Reapply the same preset, then reload to prove color survives edit storage.
+ await page.locator('#shapeList button').first().click();
+ await page.locator('#shapeList button').nth(1).click({modifiers:['Control']});
+ await page.locator('#selectedShapeColor').click();
+ await page.locator('#shapeColorPresets [data-color="#FFD329"]').click();
+ await page.waitForTimeout(550);
+ await page.reload({waitUntil:'domcontentloaded',timeout:45000});
+ await page.waitForFunction(()=>window.__manabiCadReady===true&&document.querySelectorAll('#shapeList button').length===2,null,{timeout:60000});
+ colors=await page.evaluate(()=>window.__manabiColorSnapshot());
+ if(colors.some(c=>c.color!=='#FFD329'||c.display!=='FFD329'))throw Error('Color was lost across browser reload: '+JSON.stringify(colors));
+ // Hole mode is gray translucent but converting back restores its color.
+ await page.locator('#shapeList button').first().click();
+ await page.locator('#holeToggle').click();
+ colors=await page.evaluate(()=>window.__manabiColorSnapshot());
+ if(colors[0].color!=='#FFD329'||colors[0].display==='FFD329'||!colors[0].hole)throw Error('Hole did not use neutral preview while keeping its color');
+ await page.locator('#holeToggle').click();
+ colors=await page.evaluate(()=>window.__manabiColorSnapshot());
+ if(colors[0].hole||colors[0].display!=='FFD329')throw Error('Converting hole back lost color');
+ // Selection stays colored and mixed selection is explained.
+ await page.locator('#shapeList button').first().click();
+ await page.locator('#selectedShapeColor').click();
+ await page.locator('#shapeColorPresets [data-color="#E83641"]').click();
+ await page.locator('#shapeList button').nth(1).click({modifiers:['Control']});
+ if((await page.locator('#selectedColorValue').textContent()).trim()!=='色が混在')throw Error('Mixed colors not indicated');
+ console.log('PASS: selected-shape recolor, multi-selection, undo, autosave, hole-color restore and mixed colors');
 
 
 

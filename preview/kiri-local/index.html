@@ -148,6 +148,21 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
 .rotationAxisOverlay button[aria-pressed=true]{background:#dceeff;border:2px solid currentColor;box-shadow:0 1px 5px #3570aa33}
 .rotatePrompt,.rotateAngle{font-size:11px;color:#405c79}.rotateAngle{min-width:35px;text-align:right;font-variant-numeric:tabular-nums}
 @media(max-width:690px){.rotationAxisOverlay{gap:3px;padding:5px}.rotationAxisOverlay button{min-width:28px;min-height:37px;padding:4px 5px}.rotatePrompt{display:none}}
+
+#dropToFloor:disabled,#alignTop:disabled{opacity:.43;cursor:not-allowed}
+.alignOverlay{position:absolute;right:12px;top:12px;z-index:12;width:min(338px,calc(100% - 24px));background:#fffffff7;box-shadow:0 10px 32px #193a6150;border:1px solid #aac8e6;border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px;color:#294764;font-size:12px}
+.alignOverlay[hidden]{display:none!important}
+.alignHeader{display:flex;justify-content:space-between;align-items:center;font-size:14px}
+.alignHeader button{font-size:22px;min-width:36px;min-height:33px;padding:0}
+.alignRefLabel{font-weight:700;font-size:11px}
+#alignReference{width:100%;border:1px solid #b9d0e3;border-radius:7px;background:white;color:#294764;padding:8px;font-size:12px;min-height:36px}
+.alignHelp{font-size:11px;color:#61758d;line-height:1.5;margin:0}
+.alignAxisRow{display:grid;grid-template-columns:39px repeat(3,minmax(0,1fr));gap:5px;align-items:center}
+.alignAxisName{font-size:12px;font-weight:800;text-align:center}
+.alignAxisName.axisX{color:#bb3939}.alignAxisName.axisY{color:#1a8554}.alignAxisName.axisZ{color:#216fb9}
+.alignAxisRow button{min-height:40px;padding:5px 2px;border:1px solid #c6d9ec;background:#f8fbff;font-size:11px;font-weight:650;border-radius:7px;touch-action:manipulation}
+.alignAxisRow button:hover,.alignAxisRow button:focus-visible{background:#dcecff;border-color:#438cd0}
+@media(max-width:690px){.alignOverlay{right:6px;top:6px;width:min(305px,calc(100% - 12px));padding:10px}.alignAxisRow button{font-size:10px;min-height:42px}}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","three-bvh-csg":"https://esm.sh/three-bvh-csg@0.0.18?external=three"}}
@@ -169,14 +184,38 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
    <button id="modeRotate" title="回転ハンドル (R)">⟳ 回転</button><button id="rangeMode" type="button" aria-pressed="false" title="作業面を囲んで複数図形を選択。タップで選択の追加・解除">▧ 範囲選択</button><button id="focusSelected" title="選択した図形を見やすい大きさに表示">◎ 図形に寄る</button>
   </div>
   <button id="addBox" class="primary">＋ 立方体</button><button id="addCylinder">＋ 円柱</button><button id="addSphere">＋ 球</button>
-  <span class="sep"></span><button id="combineTop" type="button" class="primary" disabled title="選択した実体と穴を処理">🔗 結合・穴あけ</button><button id="soloToggle" type="button" disabled aria-pressed="false" title="選択した図形だけをCAD画面に一時表示。保存・スライスには影響しません">👁 単独表示</button><button id="clearSelection" type="button" title="選択した図形を解除">選択解除</button><button id="copyObjects" type="button" title="選択した図形をコピー（Ctrl/⌘+C）" disabled>⧉ コピー</button><button id="pasteObjects" type="button" title="コピーした図形を貼り付け（Ctrl/⌘+V）" disabled>▣ 貼り付け</button><button id="deleteObjects" type="button" class="danger" title="選択した図形を削除（Delete / Backspace）" disabled>🗑 選択図形を削除</button><button id="undoObjects" type="button" title="直前の操作を元に戻す（Ctrl/⌘+Z）" disabled>↶ 元に戻す</button><span class="sep"></span><button id="openStl" title="STLをCADに読み込み">STL読込</button><input id="stlFile" type="file" accept=".stl,model/stl,application/sla">
+  <span class="sep"></span><button id="dropToFloor" type="button" disabled title="選択した図形の実際の底面をZ=0の作業面にぴったり接地（D）">⬇ 作業面に接地</button><button id="alignTop" type="button" disabled title="2個以上の選択図形の左・中央・右、前・中央・奥、下・中央・上をそろえる">⊞ 整列</button><button id="combineTop" type="button" class="primary" disabled title="選択した実体と穴を処理">🔗 結合・穴あけ</button><button id="soloToggle" type="button" disabled aria-pressed="false" title="選択した図形だけをCAD画面に一時表示。保存・スライスには影響しません">👁 単独表示</button><button id="clearSelection" type="button" title="選択した図形を解除">選択解除</button><button id="copyObjects" type="button" title="選択した図形をコピー（Ctrl/⌘+C）" disabled>⧉ コピー</button><button id="pasteObjects" type="button" title="コピーした図形を貼り付け（Ctrl/⌘+V）" disabled>▣ 貼り付け</button><button id="deleteObjects" type="button" class="danger" title="選択した図形を削除（Delete / Backspace）" disabled>🗑 選択図形を削除</button><button id="undoObjects" type="button" title="直前の操作を元に戻す（Ctrl/⌘+Z）" disabled>↶ 元に戻す</button><span class="sep"></span><button id="openStl" title="STLをCADに読み込み">STL読込</button><input id="stlFile" type="file" accept=".stl,model/stl,application/sla">
   <button id="saveStl">STL保存</button><button id="saveProject" class="cadOther" title="再編集可能な独自形式で保存">編集データ保存</button>
   <button id="loadProject" class="cadOther">編集データ読込</button><input id="projectFile" type="file" accept=".json,.m3d.json,application/json">
   <span class="grow"></span><button id="propsToggle">寸法</button><button id="toSlice" class="primary">スライスへ →</button>
  </div>
- <div id="cadContextMenu" role="menu" aria-label="CAD図形の操作" hidden><button id="contextCopy" type="button" role="menuitem">⧉ 選択図形をコピー</button><button id="contextPaste" type="button" role="menuitem">▣ 貼り付け</button><button id="contextDuplicate" type="button" role="menuitem">⧉ すぐ複製</button><button id="contextDelete" type="button" role="menuitem" class="danger">🗑 選択図形を削除</button></div>
+ <div id="cadContextMenu" role="menu" aria-label="CAD図形の操作" hidden><button id="contextCopy" type="button" role="menuitem">⧉ 選択図形をコピー</button><button id="contextPaste" type="button" role="menuitem">▣ 貼り付け</button><button id="contextDuplicate" type="button" role="menuitem">⧉ すぐ複製</button><button id="contextDrop" type="button" role="menuitem">⬇ 作業面に接地</button><button id="contextAlign" type="button" role="menuitem">⊞ 選択図形を整列</button><button id="contextDelete" type="button" role="menuitem" class="danger">🗑 選択図形を削除</button></div>
  <div id="cadBody">
-  <div id="canvasWrap"><canvas id="canvas3d" aria-label="3D CAD 作業領域"></canvas><div id="resizeOverlay" aria-label="ドラッグ式の寸法ハンドル"></div><div id="rotationAxisOverlay" class="rotationAxisOverlay" hidden role="group" aria-label="選択した図形の回転軸"><span class="rotatePrompt">回転軸</span><button type="button" id="rotateAxisX" data-axis="x" title="X軸まわりの回転リング">X</button><button type="button" id="rotateAxisY" data-axis="y" title="Y軸まわりの回転リング">Y</button><button type="button" id="rotateAxisZ" data-axis="z" title="Z軸まわりの回転リング">Z</button><button type="button" id="rotateMinus" title="選択軸を15度戻す">−15°</button><button type="button" id="rotatePlus" title="選択軸を15度回す">+15°</button><span id="rotateAxisAngle" class="rotateAngle">0°</span></div><div id="marquee" hidden aria-hidden="true"></div><div id="gripHint" hidden>● 赤＝幅　● 緑＝奥行　● 青＝高さ　● 紫＝全体　／　数字をクリックして直接入力</div><div id="emptyHelp">右の図形をドラッグして作業面に配置しよう</div><div id="axisHelp">図形のそばにあるX・Y・Zで回転軸を選択、リングをドラッグ ／ ▧ 範囲選択：複数選択<br>複数選択して「🔗 結合・穴あけ」 ／ 赤い穴図形の重なり部分を除去</div></div>
+  <div id="canvasWrap"><canvas id="canvas3d" aria-label="3D CAD 作業領域"></canvas><div id="resizeOverlay" aria-label="ドラッグ式の寸法ハンドル"></div><div id="alignOverlay" class="alignOverlay" hidden role="region" aria-label="選択図形の整列">
+  <div class="alignHeader"><strong>⊞ 整列（Align）</strong><button id="alignClose" type="button" aria-label="整列パネルを閉じる">×</button></div>
+  <label class="alignRefLabel" for="alignReference">動かさない基準図形</label>
+  <select id="alignReference" aria-label="整列の基準図形"></select>
+  <p class="alignHelp">2つ以上の図形を選択し、基準図形にそろえる場所を選択。選んだ軸だけ移動します。</p>
+  <div class="alignAxisRow" role="group" aria-label="X軸の整列">
+   <span class="alignAxisName axisX">X軸</span>
+   <button type="button" data-align-axis="x" data-align-position="min" title="X軸の左端を合わせる">◀ 左端</button>
+   <button type="button" data-align-axis="x" data-align-position="center" title="X軸の中央を合わせる">● 中央</button>
+   <button type="button" data-align-axis="x" data-align-position="max" title="X軸の右端を合わせる">右端 ▶</button>
+  </div>
+  <div class="alignAxisRow" role="group" aria-label="Y軸の整列">
+   <span class="alignAxisName axisY">Y軸</span>
+   <button type="button" data-align-axis="y" data-align-position="min" title="Y軸の手前端を合わせる">◀ 手前</button>
+   <button type="button" data-align-axis="y" data-align-position="center" title="Y軸の中央を合わせる">● 中央</button>
+   <button type="button" data-align-axis="y" data-align-position="max" title="Y軸の奥端を合わせる">奥 ▶</button>
+  </div>
+  <div class="alignAxisRow" role="group" aria-label="Z軸の整列">
+   <span class="alignAxisName axisZ">Z軸</span>
+   <button type="button" data-align-axis="z" data-align-position="min" title="Z軸の下端を合わせる">▼ 下端</button>
+   <button type="button" data-align-axis="z" data-align-position="center" title="Z軸の中央を合わせる">● 中央</button>
+   <button type="button" data-align-axis="z" data-align-position="max" title="Z軸の上端を合わせる">上端 ▲</button>
+  </div>
+  <p class="alignHelp" id="alignFeedback" role="status">基準図形は動かしません。結合や穴あけの前にも使えます。</p>
+ </div><div id="rotationAxisOverlay" class="rotationAxisOverlay" hidden role="group" aria-label="選択した図形の回転軸"><span class="rotatePrompt">回転軸</span><button type="button" id="rotateAxisX" data-axis="x" title="X軸まわりの回転リング">X</button><button type="button" id="rotateAxisY" data-axis="y" title="Y軸まわりの回転リング">Y</button><button type="button" id="rotateAxisZ" data-axis="z" title="Z軸まわりの回転リング">Z</button><button type="button" id="rotateMinus" title="選択軸を15度戻す">−15°</button><button type="button" id="rotatePlus" title="選択軸を15度回す">+15°</button><span id="rotateAxisAngle" class="rotateAngle">0°</span></div><div id="marquee" hidden aria-hidden="true"></div><div id="gripHint" hidden>● 赤＝幅　● 緑＝奥行　● 青＝高さ　● 紫＝全体　／　数字をクリックして直接入力</div><div id="emptyHelp">右の図形をドラッグして作業面に配置しよう</div><div id="axisHelp">図形のそばにあるX・Y・Zで回転軸を選択、リングをドラッグ ／ ▧ 範囲選択：複数選択<br>複数選択して「🔗 結合・穴あけ」 ／ 赤い穴図形の重なり部分を除去</div></div>
   <aside id="props" aria-label="図形の追加と編集">
    <div id="shapePanel">
     <h2>基本図形</h2>
@@ -356,6 +395,7 @@ $('rotateMinus').onclick=()=>rotateSelectedByDegrees(-15);
 $('rotatePlus').onclick=()=>rotateSelectedByDegrees(15);
 $('modeMove').onclick=()=>setMode('translate');$('modeScale').onclick=()=>setMode('scale');$('modeRotate').onclick=()=>setMode('rotate');
 const items=[];let currentId=null;let uid=0;const undo=[];const selectedIds=new Set();let rangeSelectActive=false;
+let alignReferenceId=null;
 // In-app CAD clipboard (not the OS text clipboard). Keep independent copies
 // of serialized objects, including hole flags, 3D text and imported STL vertices.
 let clipboardRecords=null,clipboardPasteCount=0;
@@ -614,6 +654,9 @@ function setSelection(ids){
  selectedIds.clear();for(const id of ids||[]){if(items.some(it=>it.id===id))selectedIds.add(id);}
  const picked=chosenItems();currentId=picked.length===1?picked[0].id:null;
  $('copyObjects').disabled=picked.length===0;
+ $('dropToFloor').disabled=picked.length===0;
+ $('alignTop').disabled=picked.length<2;
+ refreshAlignReference(picked);
  $('deleteObjects').disabled=picked.length===0;
  $('deleteObjects').textContent=picked.length>1?'🗑 '+picked.length+'個を削除':'🗑 選択図形を削除';
  $('pasteObjects').disabled=!clipboardRecords?.length;
@@ -833,6 +876,94 @@ function frameSelected(){const it=selected();if(!it){notify('図形を選択し�
  controls.target.copy(center);camera.position.copy(center).addScaledVector(dir,distance);controls.update();
  notify('図形を中央に大きく表示しました。');}
 $('focusSelected').onclick=frameSelected;
+
+// World-axis workplane drop and Tinkercad-style alignment.
+// setFromObject considers the actual transformed mesh, including all X/Y/Z
+// rotations; neither operation distorts or resets the selected object's shape.
+function worldBounds(it){
+ if(!it?.mesh)throw Error('位置情報を取得できません');
+ it.mesh.updateMatrixWorld(true);
+ const bounds=new THREE.Box3().setFromObject(it.mesh);
+ if(bounds.isEmpty()||!Number.isFinite(bounds.min.z)||!Number.isFinite(bounds.max.z))throw Error('モデルの外形を取得できません');
+ return bounds;
+}
+function refreshAlignReference(picked=chosenItems()){
+ const panel=$('alignOverlay'),ref=$('alignReference');
+ if(picked.length<2){panel.hidden=true;alignReferenceId=null;ref.replaceChildren();return;}
+ if(!picked.some(it=>it.id===alignReferenceId))alignReferenceId=picked[0].id;
+ const keep=alignReferenceId;
+ ref.replaceChildren(...picked.map(it=>{
+  const opt=document.createElement('option');opt.value=it.id;opt.textContent=it.name+(it.hole?'（穴）':'（実体）');return opt;
+ }));
+ ref.value=keep;
+}
+function openAlignPanel(){
+ if(chosenItems().length<2){notify('位置をそろえるには2個以上の図形を選択してください');return;}
+ refreshAlignReference();
+ $('alignOverlay').hidden=false;
+ $('alignFeedback').textContent='基準図形は固定。そろえたい軸の左・中央・右／手前・中央・奥／下・中央・上を押してください。';
+ notify('整列モード：基準図形を決めて、X・Y・Z各軸の位置を選択できます');
+}
+$('alignTop').onclick=openAlignPanel;
+$('alignClose').onclick=()=>{$('alignOverlay').hidden=true;};
+$('alignReference').onchange=()=>{alignReferenceId=$('alignReference').value;$('alignFeedback').textContent='基準図形を変更しました。基準は動かさず、他の選択図形を動かします。';};
+function alignCoordinate(bounds,axis,where){
+ return where==='min'?bounds.min[axis]:where==='max'?bounds.max[axis]:(bounds.min[axis]+bounds.max[axis])/2;
+}
+function alignSelectedOnAxis(axis,where){
+ if(!['x','y','z'].includes(axis)||!['min','center','max'].includes(where))throw Error('整列位置が不正です');
+ const picked=chosenItems();
+ if(picked.length<2){notify('整列する図形を2個以上選択してください');return false;}
+ if(!picked.some(it=>it.id===alignReferenceId))alignReferenceId=picked[0].id;
+ const reference=picked.find(it=>it.id===alignReferenceId),refPoint=alignCoordinate(worldBounds(reference),axis,where);
+ const moves=[];
+ for(const it of picked){
+  if(it.id===reference.id)continue;
+  const ownPoint=alignCoordinate(worldBounds(it),axis,where);
+  const delta=refPoint-ownPoint;
+  if(!Number.isFinite(delta)||Math.abs((Number(it[axis])||0)+delta)>1000){notify('整列先が作業範囲（±1000mm）の外です');return false;}
+  if(Math.abs(delta)>0.00001)moves.push({it,delta});
+ }
+ if(!moves.length){notify('すでに同じ位置に整列しています');return true;}
+ undoSnapshot();
+ for(const {it,delta} of moves){
+  it[axis]=Number((it[axis]+delta).toFixed(6));
+  it.mesh.position[axis]=it[axis];
+  it.mesh.updateMatrixWorld(true);
+ }
+ setSelection(picked.map(it=>it.id));autosave();
+ const axisName={x:'X（左右）',y:'Y（前後）',z:'Z（上下）'}[axis];
+ const whereName={min:'下限',center:'中央',max:'上限'}[where];
+ const message=axisName+'の'+whereName+'を「'+reference.name+'」に合わせました。'+moves.length+'個を移動。';
+ $('alignFeedback').textContent=message;
+ notify(message+' 結合・穴あけにそのまま進めます。');
+ return true;
+}
+document.querySelectorAll('[data-align-axis][data-align-position]').forEach(button=>{
+ button.onclick=()=>alignSelectedOnAxis(button.dataset.alignAxis,button.dataset.alignPosition);
+});
+function dropSelectedToWorkplane(){
+ const picked=chosenItems();
+ if(!picked.length){notify('接地する図形を選択してください');return false;}
+ // Treat multiple selected objects as one assembly. Lower the lowest
+ // visible point of the entire selection to Z=0 while preserving all
+ // distances between parts (important for educational assemblies).
+ const lowest=Math.min(...picked.map(it=>worldBounds(it).min.z));
+ const delta=-lowest;
+ if(!Number.isFinite(delta)||picked.some(it=>Math.abs((Number(it.z)||0)+delta)>1000)){
+  notify('接地位置が作業範囲の外です');return false;
+ }
+ if(Math.abs(delta)<=0.00001){notify('選択図形はすでに作業面（Z=0）にぴったり接しています');return true;}
+ undoSnapshot();
+ for(const it of picked){
+  it.z=Number((it.z+delta).toFixed(6));it.mesh.position.z=it.z;it.mesh.updateMatrixWorld(true);
+ }
+ setSelection(picked.map(it=>it.id));autosave();
+ notify(picked.length+'個の図形を作業面（Z=0）に接地。複数選択時も図形同士の高さの差を保ちます。');
+ return true;
+}
+$('dropToFloor').onclick=dropSelectedToWorkplane;
+
 // Placement controls are wired after raycaster initialization below.
 // One deletion path for keyboard, context menu, toolbar, and sidebar.
 function deleteCadSelection(){
@@ -936,6 +1067,8 @@ function showCadContextMenu(x,y){
  $('contextDuplicate').disabled=chosenItems().length===0;
  $('contextPaste').disabled=!clipboardRecords?.length;
  $('contextDelete').disabled=chosenItems().length===0;
+ $('contextDrop').disabled=chosenItems().length===0;
+ $('contextAlign').disabled=chosenItems().length<2;
  contextMenu.hidden=false;contextMenu.style.visibility='hidden';
  const w=contextMenu.offsetWidth||200,h=contextMenu.offsetHeight||150;
  contextMenu.style.left=Math.max(8,Math.min(x,window.innerWidth-w-8))+'px';
@@ -946,6 +1079,8 @@ $('contextCopy').onclick=()=>{hideCadContextMenu();copyCadSelection();};
 $('contextPaste').onclick=()=>{hideCadContextMenu();pasteCadSelection();};
 $('contextDuplicate').onclick=()=>{hideCadContextMenu();if(copyCadSelection())pasteCadSelection();};
 $('contextDelete').onclick=deleteCadSelection;
+$('contextDrop').onclick=()=>{hideCadContextMenu();dropSelectedToWorkplane();};
+$('contextAlign').onclick=()=>{hideCadContextMenu();openAlignPanel();};
 $('canvas3d').addEventListener('contextmenu',e=>{
  if(!$('cadPage').classList.contains('active'))return;
  e.preventDefault();e.stopPropagation();
@@ -1567,6 +1702,17 @@ $('sendToKiri').onclick=transfer;$('toSlice').onclick=enterFullPageKiri;
 try{const saved=localStorage.getItem('manabi3d-cad-draft-v1');if(saved){loadProjectString(saved);notify('このブラウザの前回の編集内容を復元しました');}else{notify('準備完了。図形を追加して始めよう。');}}catch(e){notify('ブラウザの保存データは使用できません。手動保存は可能です。');}
 
 if(new URLSearchParams(location.search).has('testShapes')){
+ // Debug-only snapshot of *world* bounds, available only with testShapes=1.
+ // This verifies rotated solids touch Z=0 and alignment preserves rotations.
+ window.__manabiSpatialSnapshot=()=>({
+  items:items.map(it=>{
+   const b=worldBounds(it);
+   return {id:it.id,name:it.name,x:it.x,y:it.y,z:it.z,
+    angle:it.angle,angleX:it.angleX||0,angleY:it.angleY||0,
+    bounds:{min:{...b.min},max:{...b.max}},selected:selectedIds.has(it.id)};
+  }),
+  reference:alignReferenceId
+ });
  window.__manabiTestShapes=()=>{
   const types=['pyramid','wedge','halfcylinder','hemisphere','thinring','pentagon','icosa','octa','dodeca','star','starpeak','heart','cup','gem','paraboloid','frustum','arch','spin','wave','tetra','sketch'];
   return types.map(type=>{

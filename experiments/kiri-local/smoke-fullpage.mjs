@@ -39,6 +39,32 @@ try{
  page.on('requestfailed',req=>log.push('FAILED REQUEST '+req.url()+' '+req.failure()));
  page.on('response',r=>{if(r.status()>=400)log.push('HTTP '+r.status()+' '+r.url());});
  const origin='http://127.0.0.1:'+port+prefix;
+ // Real browser check: all 20 parametric shapes and freehand sketch
+ // produce sensible bounds, triangle meshes, STL, and round-trip save data.
+ await page.goto(origin+'index.html?testShapes=1',{waitUntil:'domcontentloaded',timeout:45000});
+ await page.waitForFunction(()=>window.__manabiCadReady===true&&typeof window.__manabiTestShapes==='function',null,{timeout:60000});
+ const shapes=await page.evaluate(()=>window.__manabiTestShapes());
+ console.log('CAD SHAPE TESTS '+JSON.stringify(shapes));
+ const failures=shapes.filter(v=>!v.ok);
+ if(failures.length)throw Error('CAD shape geometry errors: '+JSON.stringify(failures));
+ if(shapes.length!==21)throw Error('CAD expected 20 library shapes plus sketch, got '+shapes.length);
+ await page.locator('#shapeLibrary summary').click();
+ await page.locator('#sketchTool').click();
+ const canvas=page.locator('#sketchCanvas'),bbox=await canvas.boundingBox();
+ if(!bbox)throw Error('Sketch editor canvas missing');
+ const path=[[.25,.25],[.75,.25],[.77,.73],[.24,.75],[.25,.25]];
+ await page.mouse.move(bbox.x+bbox.width*path[0][0],bbox.y+bbox.height*path[0][1]);
+ await page.mouse.down();
+ for(const [x,y] of path.slice(1)){
+  await page.mouse.move(bbox.x+bbox.width*x,bbox.y+bbox.height*y,{steps:7});
+ }
+ await page.mouse.up();
+ await page.locator('#sketchCreate').click();
+ await page.waitForFunction(()=>document.querySelectorAll('#shapeList button').length===1,null,{timeout:10000});
+ await page.locator('#copyObjects').click();
+ await page.locator('#pasteObjects').click();
+ await page.waitForFunction(()=>document.querySelectorAll('#shapeList button').length===2,null,{timeout:10000});
+ console.log('PASS: touch-like sketch, CAD copy-paste, all shape STL/export checks');
  await page.goto(origin+'smoke.html',{waitUntil:'load',timeout:45000});
  const staged=await page.evaluate(async a=>window.ManabiKiriBridge.stage(new Uint8Array(a).buffer,{bedX:180,bedY:180,bedZ:180,height:.2}),cubeSTL());
  console.log('Staged STL in '+staged);
@@ -103,6 +129,7 @@ try{
  // Regression 1: delete through our own slicer UI, then reload. A
  // consumed transfer must never recreate the intentionally deleted model.
  await page.locator('#manabiModelManagerSummary').click();
+ await page.locator('#manabiModelManager').evaluate(el=>el.open=true);
  await page.locator('#manabiModelManageList button[data-remove-id]').first().click();
  await page.waitForFunction(()=>window.kiri.api.widgets.all().length===0,null,{timeout:10000});
  console.log('PASS: slicer model-management delete');

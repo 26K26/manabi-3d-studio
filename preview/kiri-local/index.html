@@ -117,7 +117,7 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
 @media(max-width:690px){#sliceViewer{min-height:0;flex:1}#slicePreviewPanel{height:170px}#sliceViewer #kiri{flex:1;min-height:240px}}
 
 /* Selection clipboard works with mouse, iPad touch buttons, and keyboards. */
-#copyObjects:disabled,#pasteObjects:disabled{opacity:.42;cursor:not-allowed}
+#copyObjects:disabled,#pasteObjects:disabled,#deleteObjects:disabled,#undoObjects:disabled{opacity:.42;cursor:not-allowed}
 #cadContextMenu{position:fixed;z-index:10000;display:flex;flex-direction:column;gap:4px;min-width:188px;padding:6px;background:#fff;border:1px solid #b5c9dd;border-radius:11px;box-shadow:0 8px 26px #1b355440}
 #cadContextMenu[hidden]{display:none!important}
 #cadContextMenu button{padding:11px 13px;text-align:left;border:0;border-radius:7px;background:#fff;color:#244563;font-size:13px;min-height:40px}
@@ -161,12 +161,12 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
    <button id="modeRotate" title="回転ハンドル (R)">⟳ 回転</button><button id="rangeMode" type="button" aria-pressed="false" title="作業面を囲んで複数図形を選択。タップで選択の追加・解除">▧ 範囲選択</button><button id="focusSelected" title="選択した図形を見やすい大きさに表示">◎ 図形に寄る</button>
   </div>
   <button id="addBox" class="primary">＋ 立方体</button><button id="addCylinder">＋ 円柱</button><button id="addSphere">＋ 球</button>
-  <span class="sep"></span><button id="combineTop" type="button" class="primary" disabled title="選択した実体と穴を処理">🔗 結合・穴あけ</button><button id="soloToggle" type="button" disabled aria-pressed="false" title="選択した図形だけをCAD画面に一時表示。保存・スライスには影響しません">👁 単独表示</button><button id="clearSelection" type="button" title="選択した図形を解除">選択解除</button><button id="copyObjects" type="button" title="選択した図形をコピー（Ctrl/⌘+C）" disabled>⧉ コピー</button><button id="pasteObjects" type="button" title="コピーした図形を貼り付け（Ctrl/⌘+V）" disabled>▣ 貼り付け</button><span class="sep"></span><button id="openStl" title="STLをCADに読み込み">STL読込</button><input id="stlFile" type="file" accept=".stl,model/stl,application/sla">
+  <span class="sep"></span><button id="combineTop" type="button" class="primary" disabled title="選択した実体と穴を処理">🔗 結合・穴あけ</button><button id="soloToggle" type="button" disabled aria-pressed="false" title="選択した図形だけをCAD画面に一時表示。保存・スライスには影響しません">👁 単独表示</button><button id="clearSelection" type="button" title="選択した図形を解除">選択解除</button><button id="copyObjects" type="button" title="選択した図形をコピー（Ctrl/⌘+C）" disabled>⧉ コピー</button><button id="pasteObjects" type="button" title="コピーした図形を貼り付け（Ctrl/⌘+V）" disabled>▣ 貼り付け</button><button id="deleteObjects" type="button" class="danger" title="選択した図形を削除（Delete / Backspace）" disabled>🗑 選択図形を削除</button><button id="undoObjects" type="button" title="直前の操作を元に戻す（Ctrl/⌘+Z）" disabled>↶ 元に戻す</button><span class="sep"></span><button id="openStl" title="STLをCADに読み込み">STL読込</button><input id="stlFile" type="file" accept=".stl,model/stl,application/sla">
   <button id="saveStl">STL保存</button><button id="saveProject" class="cadOther" title="再編集可能な独自形式で保存">編集データ保存</button>
   <button id="loadProject" class="cadOther">編集データ読込</button><input id="projectFile" type="file" accept=".json,.m3d.json,application/json">
   <span class="grow"></span><button id="propsToggle">寸法</button><button id="toSlice" class="primary">スライスへ →</button>
  </div>
- <div id="cadContextMenu" role="menu" aria-label="CAD図形の操作" hidden><button id="contextCopy" type="button" role="menuitem">⧉ 選択図形をコピー</button><button id="contextPaste" type="button" role="menuitem">▣ 貼り付け</button><button id="contextDuplicate" type="button" role="menuitem">⧉ すぐ複製</button></div>
+ <div id="cadContextMenu" role="menu" aria-label="CAD図形の操作" hidden><button id="contextCopy" type="button" role="menuitem">⧉ 選択図形をコピー</button><button id="contextPaste" type="button" role="menuitem">▣ 貼り付け</button><button id="contextDuplicate" type="button" role="menuitem">⧉ すぐ複製</button><button id="contextDelete" type="button" role="menuitem" class="danger">🗑 選択図形を削除</button></div>
  <div id="cadBody">
   <div id="canvasWrap"><canvas id="canvas3d" aria-label="3D CAD 作業領域"></canvas><div id="resizeOverlay" aria-label="ドラッグ式の寸法ハンドル"></div><div id="marquee" hidden aria-hidden="true"></div><div id="gripHint" hidden>● 赤＝幅　● 緑＝奥行　● 青＝高さ　● 紫＝全体　／　数字をクリックして直接入力</div><div id="emptyHelp">右の図形をドラッグして作業面に配置しよう</div><div id="axisHelp">図形をタップ：寸法表示／もう一度タップ：非表示 ／ ▧ 範囲選択：複数選択<br>複数選択して「🔗 結合・穴あけ」 ／ 赤い穴図形の重なり部分を除去</div></div>
   <aside id="props" aria-label="図形の追加と編集">
@@ -575,6 +575,8 @@ function setSelection(ids){
  selectedIds.clear();for(const id of ids||[]){if(items.some(it=>it.id===id))selectedIds.add(id);}
  const picked=chosenItems();currentId=picked.length===1?picked[0].id:null;
  $('copyObjects').disabled=picked.length===0;
+ $('deleteObjects').disabled=picked.length===0;
+ $('deleteObjects').textContent=picked.length>1?'🗑 '+picked.length+'個を削除':'🗑 選択図形を削除';
  $('pasteObjects').disabled=!clipboardRecords?.length;
  if(picked.length!==1)dimensionLabelsVisible=false;
  // Changing the active shape in the sidebar switches solo view to it.
@@ -740,7 +742,13 @@ function serializeRec(it){const {mesh,...clean}=it;return JSON.parse(JSON.string
 function documentData(){return {schema:'manabi3d-project',version:1,units:'mm',title:'untitled',savedAt:new Date().toISOString(),items:items.map(serializeRec)};}
 let autosaveHandle=0;
 function autosave(){clearTimeout(autosaveHandle);autosaveHandle=setTimeout(()=>{try{const raw=JSON.stringify(documentData());if(raw.length>2500000){notify('作品が大きいため自動保存を省略。編集データをダウンロードしてください。');return;}localStorage.setItem('manabi3d-cad-draft-v1',raw);}catch(e){notify('自動保存不可：ブラウザの保存制限。編集データをダウンロードしてね。');}},300);}
-function undoSnapshot(){try{undo.push(JSON.stringify(documentData()));if(undo.length>10)undo.shift();}catch{}}
+function undoSnapshot(){
+ try{
+  undo.push(JSON.stringify(documentData()));
+  if(undo.length>10)undo.shift();
+  $('undoObjects').disabled=false;
+ }catch{}
+}
 function updateSelected(){const it=selected();if(!it)return;const vs=selectInputs.map(id=>Number($(id).value));if(vs.some(v=>!Number.isFinite(v))){notify('数値を入力してください');return;}let [w,d,h,x,y,z,angle]=vs;
  if([w,d,h].some(v=>v<.1||v>500)||[x,y,z].some(v=>Math.abs(v)>1000)){notify('大きさ0.1～500mm、位置±1000mmの範囲で指定してください');return;}
  undoSnapshot();Object.assign(it,{w,d,h,x,y,z,angle});applyRec(it);autosave();notify('寸法と配置を更新しました');}
@@ -754,7 +762,51 @@ function frameSelected(){const it=selected();if(!it){notify('図形を選択し�
  notify('図形を中央に大きく表示しました。');}
 $('focusSelected').onclick=frameSelected;
 // Placement controls are wired after raycaster initialization below.
-$('remove').onclick=()=>{const it=selected();if(!it)return;undoSnapshot();scene.remove(it.mesh);it.mesh.geometry.dispose();it.mesh.material.dispose();items.splice(items.indexOf(it),1);setSelected(null);$('emptyHelp').hidden=!!items.length;renderShapeList();autosave();notify('図形を削除しました');};
+// One deletion path for keyboard, context menu, toolbar, and sidebar.
+function deleteCadSelection(){
+ const picked=chosenItems();
+ if(!picked.length){notify('削除する図形を選択してください。');return false;}
+ undoSnapshot(); // Preserve the whole CAD project before changing any mesh.
+ hideCadContextMenu();
+ transform.detach();
+ if(resizeDrag){resizeDrag=null;controls.enabled=true;}
+ if(placing||armedShape)cancelPlacement();
+ soloId=null;
+ const ids=new Set(picked.map(it=>it.id));
+ for(let i=items.length-1;i>=0;i--){
+  const it=items[i];
+  if(!ids.has(it.id))continue;
+  scene.remove(it.mesh);
+  it.mesh.geometry.dispose();
+  if(Array.isArray(it.mesh.material))it.mesh.material.forEach(m=>m.dispose());
+  else it.mesh.material.dispose();
+  items.splice(i,1);
+ }
+ dimensionLabelsVisible=false;
+ setSelection([]);
+ $('emptyHelp').hidden=items.length>0;
+ autosave();
+ notify(picked.length+'個の図形を削除しました。「元に戻す」または Ctrl/⌘+Z で復元できます。');
+ return true;
+}
+$('deleteObjects').onclick=deleteCadSelection;
+$('remove').onclick=deleteCadSelection;
+function undoCadEdit(){
+ if(!undo.length)return false;
+ const snapshot=undo.pop();
+ try{
+  loadProjectString(snapshot);
+  $('undoObjects').disabled=undo.length===0;
+  notify('直前の操作を元に戻しました。');
+  return true;
+ }catch(err){
+  undo.push(snapshot);
+  $('undoObjects').disabled=false;
+  notify('元に戻せませんでした：'+(err.message||err));
+  return false;
+ }
+}
+$('undoObjects').onclick=undoCadEdit;
 $('textContent').addEventListener('change',()=>{const it=selected();if(!it||it.type!=='text')return;const value=$('textContent').value.trim().slice(0,20);if(!value){$('textContent').value=it.text;notify('文字を1文字以上入力してください');return;}undoSnapshot();it.text=value;it.name=`文字「${value}」`;applyRec(it);setSelected(it.id,dimensionLabelsVisible);autosave();notify(`「${value}」を立体文字に更新しました`);});
 // Clipboard contents are snapshots: later edits to originals do not alter copies.
 function copyCadSelection(){
@@ -811,6 +863,7 @@ function showCadContextMenu(x,y){
  $('contextCopy').disabled=chosenItems().length===0;
  $('contextDuplicate').disabled=chosenItems().length===0;
  $('contextPaste').disabled=!clipboardRecords?.length;
+ $('contextDelete').disabled=chosenItems().length===0;
  contextMenu.hidden=false;contextMenu.style.visibility='hidden';
  const w=contextMenu.offsetWidth||200,h=contextMenu.offsetHeight||150;
  contextMenu.style.left=Math.max(8,Math.min(x,window.innerWidth-w-8))+'px';
@@ -820,6 +873,7 @@ function showCadContextMenu(x,y){
 $('contextCopy').onclick=()=>{hideCadContextMenu();copyCadSelection();};
 $('contextPaste').onclick=()=>{hideCadContextMenu();pasteCadSelection();};
 $('contextDuplicate').onclick=()=>{hideCadContextMenu();if(copyCadSelection())pasteCadSelection();};
+$('contextDelete').onclick=deleteCadSelection;
 $('canvas3d').addEventListener('contextmenu',e=>{
  if(!$('cadPage').classList.contains('active'))return;
  e.preventDefault();e.stopPropagation();
@@ -1470,12 +1524,18 @@ window.__manabiCadReady=true;
 window.addEventListener('keydown',e=>{
  const t=e.target,typing=['INPUT','TEXTAREA','SELECT'].includes(t?.tagName)||!!t?.isContentEditable;
  const mod=e.ctrlKey||e.metaKey;
- if(mod&&!e.altKey&&!typing&&$('cadPage').classList.contains('active')){
+ const cadActive=$('cadPage').classList.contains('active');
+ if(cadActive&&!typing&&!mod&&!e.altKey&&!e.shiftKey&&!document.querySelector('dialog[open]')&&(e.key==='Delete'||e.key==='Backspace')&&chosenItems().length){
+  e.preventDefault();
+  deleteCadSelection();
+  return;
+ }
+ if(mod&&!e.altKey&&!typing&&cadActive){
   const key=e.key.toLowerCase();
   if(key==='c'){if(chosenItems().length){e.preventDefault();copyCadSelection();}return;}
   if(key==='v'){e.preventDefault();pasteCadSelection();return;}
  }
- if(e.key==='Escape'&&rangeSelectActive){setRangeMode(false);notify('範囲選択モードを終了しました');return;}if(e.key==='Escape'&&(placing||armedShape)){cancelPlacement();notify('配置モードを解除しました');return;}if(!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)&&!e.ctrlKey&&!e.metaKey){if(e.key.toLowerCase()==='m')setMode('translate');if(e.key.toLowerCase()==='s')setMode('scale');if(e.key.toLowerCase()==='r')setMode('rotate');}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();$('saveProject').click();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&undo.length){e.preventDefault();try{loadProjectString(undo.pop());}catch{}}});
+ if(e.key==='Escape'&&rangeSelectActive){setRangeMode(false);notify('範囲選択モードを終了しました');return;}if(e.key==='Escape'&&(placing||armedShape)){cancelPlacement();notify('配置モードを解除しました');return;}if(!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)&&!e.ctrlKey&&!e.metaKey){if(e.key.toLowerCase()==='m')setMode('translate');if(e.key.toLowerCase()==='s')setMode('scale');if(e.key.toLowerCase()==='r')setMode('rotate');}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();$('saveProject').click();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!typing&&!e.shiftKey&&undo.length){e.preventDefault();undoCadEdit();}});
 </script>
 <script>
 // A plain script can report a failed CDN module import even when the CAD module never starts.

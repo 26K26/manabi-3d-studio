@@ -38,6 +38,40 @@ try{
  await page.locator('#copyObjects').click();await page.locator('#pasteObjects').click();
  await page.waitForFunction(()=>document.querySelectorAll('#shapeList button').length===2,null,{timeout:12000});
  console.log('PASS: all 20 new primitives, freehand polygon, saved STL, in-app copy/paste');
+ // Delete one selected CAD shape with Delete; undo restores it.
+ await page.locator('#shapeList button').first().click();
+ await page.keyboard.press('Delete');
+ await page.waitForFunction(()=>document.querySelectorAll('#shapeList button').length===1,null,{timeout:10000});
+ await page.locator('#undoObjects').click();
+ await page.waitForFunction(()=>document.querySelectorAll('#shapeList button').length===2,null,{timeout:10000});
+ // Delete two shapes together with Backspace, and verify autosave of removal.
+ await page.locator('#shapeList button').first().click();
+ await page.locator('#shapeList button').nth(1).click({modifiers:['Control']});
+ await page.waitForFunction(()=>document.querySelector('#deleteObjects')?.textContent?.includes('2個を削除'),null,{timeout:10000});
+ await page.keyboard.press('Backspace');
+ await page.waitForFunction(()=>document.querySelectorAll('#shapeList button').length===0,null,{timeout:10000});
+ await page.waitForTimeout(550);
+ const savedCount=await page.evaluate(()=>{
+   const raw=localStorage.getItem('manabi3d-cad-draft-v1');
+   return raw?JSON.parse(raw).items.length:null;
+ });
+ if(savedCount!==0)throw Error('Deleted models still exist in autosaved project: '+savedCount);
+ await page.locator('#undoObjects').click();
+ await page.waitForFunction(()=>document.querySelectorAll('#shapeList button').length===2,null,{timeout:10000});
+ // Right-click a row and use the context-menu action.
+ await page.locator('#shapeList button').first().click({button:'right'});
+ await page.locator('#contextDelete').click();
+ await page.waitForFunction(()=>document.querySelectorAll('#shapeList button').length===1,null,{timeout:10000});
+ await page.keyboard.press('Control+z');
+ await page.waitForFunction(()=>document.querySelectorAll('#shapeList button').length===2,null,{timeout:10000});
+ // Never delete models while typing into a number box.
+ await page.locator('#shapeList button').first().click();
+ await page.locator('#dimX').focus();
+ await page.keyboard.press('Backspace');
+ const remaining=await page.locator('#shapeList button').count();
+ if(remaining!==2)throw Error('Backspace in number field incorrectly deleted CAD models');
+ console.log('PASS: toolbar undo, single Delete, multi Backspace, context delete, autosave, typing safety');
+
 }catch(e){
  console.error('CAD SMOKE FAILED',e);
  console.error('Browser errors',JSON.stringify(log.slice(-20)));

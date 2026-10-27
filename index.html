@@ -945,20 +945,21 @@ document.querySelectorAll('[data-align-axis][data-align-position]').forEach(butt
 function dropSelectedToWorkplane(){
  const picked=chosenItems();
  if(!picked.length){notify('接地する図形を選択してください');return false;}
- const moves=[];
- for(const it of picked){
-  const lowest=worldBounds(it).min.z;
-  const delta=-lowest;
-  if(!Number.isFinite(delta)||Math.abs((Number(it.z)||0)+delta)>1000){notify('接地位置が作業範囲の外です');return false;}
-  if(Math.abs(delta)>0.00001)moves.push({it,delta});
+ // Treat multiple selected objects as one assembly. Lower the lowest
+ // visible point of the entire selection to Z=0 while preserving all
+ // distances between parts (important for educational assemblies).
+ const lowest=Math.min(...picked.map(it=>worldBounds(it).min.z));
+ const delta=-lowest;
+ if(!Number.isFinite(delta)||picked.some(it=>Math.abs((Number(it.z)||0)+delta)>1000)){
+  notify('接地位置が作業範囲の外です');return false;
  }
- if(!moves.length){notify('選択図形はすでに作業面（Z=0）にぴったり接しています');return true;}
+ if(Math.abs(delta)<=0.00001){notify('選択図形はすでに作業面（Z=0）にぴったり接しています');return true;}
  undoSnapshot();
- for(const {it,delta} of moves){
+ for(const it of picked){
   it.z=Number((it.z+delta).toFixed(6));it.mesh.position.z=it.z;it.mesh.updateMatrixWorld(true);
  }
  setSelection(picked.map(it=>it.id));autosave();
- notify(moves.length+'個の図形を作業面（Z=0）にぴったり接地させました。傾いた図形にも対応。');
+ notify(picked.length+'個の図形を作業面（Z=0）に接地。複数選択時も図形同士の高さの差を保ちます。');
  return true;
 }
 $('dropToFloor').onclick=dropSelectedToWorkplane;

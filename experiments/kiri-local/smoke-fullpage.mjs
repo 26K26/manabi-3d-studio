@@ -76,7 +76,35 @@ try{
  console.log('RESULT '+JSON.stringify(result));
  console.log('WORKER COUNT '+workers.length);
  if(result.event!=='slice.end')throw Error('Missing slice.end');
- console.log('PASS: CAD local transfer -> SAME TAB Kiri -> slice.end');
+ // Regression 1: delete through our own slicer UI, then reload. A
+ // consumed transfer must never recreate the intentionally deleted model.
+ await page.locator('#manabiModelManagerSummary').click();
+ await page.locator('#manabiModelManageList button[data-remove-id]').first().click();
+ await page.waitForFunction(()=>window.kiri.api.widgets.all().length===0,null,{timeout:10000});
+ console.log('PASS: slicer model-management delete');
+ await page.reload({waitUntil:'domcontentloaded'});
+ await page.waitForFunction(()=>document.getElementById('manabiModelManager') && window.kiri?.api?.widgets?.all,null,{timeout:45000});
+ await new Promise(ok=>setTimeout(ok,1800));
+ let afterReload=await page.evaluate(()=>window.kiri.api.widgets.all().length);
+ console.log('MODELS AFTER RELOAD '+afterReload);
+ if(afterReload!==0)throw Error('Deleted widget reappeared after Kiri reload');
+ // Regression 2: another CAD transfer replaces saved Kiri widgets. Simulate
+ // Safari's retained workspace by first creating an old model via the same
+ // local handoff, then staging a second CAD transfer and navigating again.
+ await page.goto(origin+'smoke.html',{waitUntil:'load'});
+ await page.evaluate(async a=>window.ManabiKiriBridge.stage(new Uint8Array(a).buffer,{height:.2}),cubeSTL());
+ await page.goto(origin+'kiri-local/kiri/?manabi=1&s=1',{waitUntil:'domcontentloaded'});
+ await page.waitForFunction(()=>window.kiri?.api?.widgets?.all?.().length===1,null,{timeout:45000});
+ await page.evaluate(()=>window.kiri.api.space.save(true));
+ await page.goto(origin+'smoke.html',{waitUntil:'load'});
+ await page.evaluate(async a=>window.ManabiKiriBridge.stage(new Uint8Array(a).buffer,{height:.2}),cubeSTL());
+ await page.goto(origin+'kiri-local/kiri/?manabi=1&s=1',{waitUntil:'domcontentloaded'});
+ await page.waitForFunction(()=>document.getElementById('manabiImportStatus')?.textContent?.includes('最新CADモデルを1個読み込みました'),null,{timeout:45000});
+ let models=await page.evaluate(()=>window.kiri.api.widgets.all().length);
+ console.log('MODELS AFTER SECOND CAD HANDOFF '+models);
+ if(models!==1)throw Error('Repeated CAD handoff accumulated saved models: '+models);
+ console.log('PASS: deletion persists and repeated CAD handoff replaces Safari workspace');
+  console.log('PASS: CAD local transfer -> SAME TAB Kiri -> slice.end');
 }catch(e){
  console.error('SAME TAB SMOKE FAILURE '+String(e));
  console.error('BROWSER ERRORS '+JSON.stringify(log.slice(-35)));

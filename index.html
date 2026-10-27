@@ -131,6 +131,15 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
 .extraShapeGrid .symbol{font-size:32px;line-height:1.15;font-weight:900}
 .extraShapeGrid button{min-height:76px}
 .extraShapeGrid button span:last-child{font-size:10.5px}
+
+#sketchDialog{border:1px solid #9abddf;border-radius:15px;padding:16px;max-width:min(440px,94vw);background:#fff;color:#25415c;box-shadow:0 18px 55px #18375555}
+#sketchDialog::backdrop{background:#0d243980}
+#sketchDialog h3{margin:0 0 8px;font-size:16px}
+#sketchDialog p{font-size:12px;color:#516980;line-height:1.5}
+#sketchCanvas{width:100%;height:auto;aspect-ratio:4/3;border:2px solid #c7d8e8;border-radius:10px;background:white;touch-action:none;display:block}
+.sketchButtons{display:flex;justify-content:space-between;gap:7px;flex-wrap:wrap;margin-top:12px}
+.sketchButtons button{padding:11px 12px;min-height:40px}
+#sketchDialog input[type=number]{width:74px;padding:7px;border:1px solid #b0c8de;border-radius:7px}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","three-bvh-csg":"https://esm.sh/three-bvh-csg@0.0.18?external=three"}}
@@ -184,6 +193,7 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
      <summary>▦ 図形ライブラリ（追加20種類）</summary>
      <p class="sub">形を選んで作業面に配置。大きさ・回転・穴あけ・コピー・STL保存に対応。</p>
      <div class="shapeGrid extraShapeGrid">
+      <button type="button" id="sketchTool" title="輪郭を描いて立体化する"><span class="symbol" style="color:#568fca">✎</span><span>手描き形状</span></button>
       <button type="button" draggable="false" data-shape="pyramid" title="四角すい"><span class="symbol" style="color:#e6a928;text-shadow:1px 2px 0 #1232">🔺</span><span>四角すい</span></button>
       <button type="button" draggable="false" data-shape="wedge" title="くさび"><span class="symbol" style="color:#3575c4;text-shadow:1px 2px 0 #1232">◢</span><span>くさび</span></button>
       <button type="button" draggable="false" data-shape="halfcylinder" title="半円柱"><span class="symbol" style="color:#36a6bf;text-shadow:1px 2px 0 #1232">◒</span><span>半円柱</span></button>
@@ -261,6 +271,17 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
 </section>
 </div>
 <footer><span id="message" role="status">起動準備中…</span><div class="links"><a href="https://classroom.google.com/" target="_blank" rel="noopener noreferrer">Classroom ↗</a><a href="https://loilonote.app/" target="_blank" rel="noopener noreferrer">ロイロノート ↗</a></div></footer>
+<dialog id="sketchDialog" aria-labelledby="sketchTitle">
+ <h3 id="sketchTitle">✎ 手描き形状をつくる</h3>
+ <p>指・マウス・Apple Pencilで輪郭を1筆で描いてね。最初と最後をつないで厚みのある立体にするよ。</p>
+ <canvas id="sketchCanvas" width="640" height="480" aria-label="図形の輪郭を描くキャンバス"></canvas>
+ <div class="sketchButtons">
+  <label>高さ（mm） <input id="sketchHeight" type="number" min="1" max="100" value="8" step="1"></label>
+  <button id="sketchClear" type="button">描き直す</button>
+  <button id="sketchCancel" type="button">閉じる</button>
+  <button id="sketchCreate" type="button" class="primary">立体化して追加</button>
+ </div>
+</dialog>
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -306,7 +327,7 @@ let dimensionLabelsVisible=false;
 let soloId=null;
 const selectInputs=['dimX','dimY','dimZ','posX','posY','posZ','angle'];
 const newId=()=>`shape_${Date.now().toString(36)}_${++uid}`;
-function defaultRec(type){const names={box:'ボックス',cylinder:'円柱',sphere:'球',cone:'円すい',roof:'屋根',hex:'六角柱',tube:'パイプ',torus:'リング',text:'文字',pyramid:'四角すい',wedge:'くさび',halfcylinder:'半円柱',hemisphere:'半球',thinring:'薄いリング',pentagon:'五角柱',icosa:'二十面体',octa:'八面体',dodeca:'十二面体',star:'星形',starpeak:'立体スター',heart:'ハート',cup:'くり抜き円柱',gem:'宝石',paraboloid:'放物面',frustum:'角すい台',arch:'アーチ',spin:'回転体・こま',wave:'波形',tetra:'三角すい'};const flat=['star','starpeak','heart','thinring','gem','wave'];return {id:newId(),type,name:names[type]||'図形',w:type==='text'?56:type==='wave'?42:25,d:type==='text'?16:25,h:type==='text'?3:flat.includes(type)?8:25,x:0,y:0,z:0,angle:0,hole:false,...(type==='text'?{text:'名前'}:{})};}
+function defaultRec(type){const names={box:'ボックス',cylinder:'円柱',sphere:'球',cone:'円すい',roof:'屋根',hex:'六角柱',tube:'パイプ',torus:'リング',text:'文字',pyramid:'四角すい',wedge:'くさび',halfcylinder:'半円柱',hemisphere:'半球',thinring:'薄いリング',pentagon:'五角柱',icosa:'二十面体',octa:'八面体',dodeca:'十二面体',star:'星形',starpeak:'立体スター',heart:'ハート',cup:'くり抜き円柱',gem:'宝石',paraboloid:'放物面',frustum:'角すい台',arch:'アーチ',spin:'回転体・こま',wave:'波形',tetra:'三角すい'};const flat=['star','starpeak','heart','thinring','gem','wave','sketch'];return {id:newId(),type,name:names[type]||'図形',w:type==='text'?56:type==='wave'?42:25,d:type==='text'?16:25,h:type==='text'?3:flat.includes(type)?8:25,x:0,y:0,z:0,angle:0,hole:false,...(type==='text'?{text:'名前'}:{})};}
 
 // 文字を端末の日本語フォントからオフライン形状化する。Canvas raster → 境界線 → 閉じた押し出し形状。
 // 同梱フォントなしで、日本語・英数字をiPad / Chromebookで立体化できる。
@@ -437,6 +458,10 @@ function extraNormalize(g,rec){
 function extraGeometry(rec){
  let g;
  switch(rec.type){
+  case 'sketch':{
+   if(!Array.isArray(rec.path)||rec.path.length<3||rec.path.length>350)throw Error('手描きの輪郭がありません');
+   g=extraExtrude(extraOutline(rec.path));break;
+  }
   case 'pyramid':
    g=new THREE.ConeGeometry(.62,1,4,1,false);
    g.rotateX(Math.PI/2);g.rotateZ(Math.PI/4);break;
@@ -520,7 +545,7 @@ function geometryOf(rec){let geom;
  else if(rec.type==='tube'){const shape=new THREE.Shape();shape.absarc(0,0,.5,0,Math.PI*2,false);const hole=new THREE.Path();hole.absarc(0,0,.29,0,Math.PI*2,true);shape.holes.push(hole);geom=new THREE.ExtrudeGeometry(shape,{depth:1,bevelEnabled:false,curveSegments:48});geom.scale(rec.w,rec.d,rec.h);}
  else if(rec.type==='roof'){const shape=new THREE.Shape();shape.moveTo(-.5,0);shape.lineTo(.5,0);shape.lineTo(0,1);shape.closePath();geom=new THREE.ExtrudeGeometry(shape,{depth:1,bevelEnabled:false});geom.rotateX(Math.PI/2);geom.translate(0,.5,0);geom.scale(rec.w,rec.d,rec.h);}
  else if(rec.type==='imported'&&Array.isArray(rec.vertices)){geom=new THREE.BufferGeometry();geom.setAttribute('position',new THREE.Float32BufferAttribute(rec.vertices,3));geom.computeVertexNormals();geom.scale(rec.w/rec.baseW,rec.d/rec.baseD,rec.h/rec.baseH);}
- else if(["pyramid","wedge","halfcylinder","hemisphere","thinring","pentagon","icosa","octa","dodeca","star","starpeak","heart","cup","gem","paraboloid","frustum","arch","spin","wave","tetra"].includes(rec.type)){geom=extraGeometry(rec);}
+ else if(["sketch","pyramid","wedge","halfcylinder","hemisphere","thinring","pentagon","icosa","octa","dodeca","star","starpeak","heart","cup","gem","paraboloid","frustum","arch","spin","wave","tetra"].includes(rec.type)){geom=extraGeometry(rec);}
  else throw Error('未対応の図形タイプ: '+rec.type);
  geom.computeBoundingBox();geom.computeVertexNormals();return geom;}
 function addRec(rec,select=true){if(items.length>=150)throw Error('試作版では150個まで');const mat=new THREE.MeshStandardMaterial({color:0x4eaff4,roughness:.55,metalness:.02,side:THREE.DoubleSide,transparent:!!rec.hole,opacity:rec.hole?.32:1,depthWrite:!rec.hole});
@@ -817,6 +842,65 @@ $('shapeList').addEventListener('contextmenu',e=>{
 document.addEventListener('pointerdown',e=>{if(!contextMenu.hidden&&!contextMenu.contains(e.target))hideCadContextMenu();},true);
 window.addEventListener('blur',hideCadContextMenu);
 window.addEventListener('keydown',e=>{if(e.key==='Escape')hideCadContextMenu();});
+
+// A freehand 2D polygon editor: touch and Apple Pencil draw a printable solid.
+const sketchDialog=$('sketchDialog'),sketchCanvas=$('sketchCanvas'),sketchCtx=sketchCanvas.getContext('2d');
+let sketchPoints=[],sketchDrawing=false;
+function drawSketch(){
+ if(!sketchCtx)return;
+ const c=sketchCanvas;
+ sketchCtx.clearRect(0,0,c.width,c.height);
+ sketchCtx.fillStyle='#fbfdff';sketchCtx.fillRect(0,0,c.width,c.height);
+ sketchCtx.strokeStyle='#e1eaf3';sketchCtx.lineWidth=1;
+ for(let i=40;i<c.width;i+=40){sketchCtx.beginPath();sketchCtx.moveTo(i,0);sketchCtx.lineTo(i,c.height);sketchCtx.stroke();}
+ for(let i=40;i<c.height;i+=40){sketchCtx.beginPath();sketchCtx.moveTo(0,i);sketchCtx.lineTo(c.width,i);sketchCtx.stroke();}
+ if(!sketchPoints.length)return;
+ const toXY=p=>[p[0]*c.width,(1-p[1])*c.height];
+ const [x,y]=toXY(sketchPoints[0]);
+ sketchCtx.beginPath();sketchCtx.moveTo(x,y);
+ for(const p of sketchPoints.slice(1)){const [a,b]=toXY(p);sketchCtx.lineTo(a,b);}
+ if(sketchPoints.length>=3){sketchCtx.closePath();sketchCtx.fillStyle='#acd6f97d';sketchCtx.fill();}
+ sketchCtx.lineCap='round';sketchCtx.lineJoin='round';sketchCtx.lineWidth=5;sketchCtx.strokeStyle='#1978cf';sketchCtx.stroke();
+}
+function addSketchPoint(e){
+ const r=sketchCanvas.getBoundingClientRect();
+ if(!r.width||!r.height)return;
+ const x=Math.max(.01,Math.min(.99,(e.clientX-r.left)/r.width));
+ const y=Math.max(.01,Math.min(.99,1-(e.clientY-r.top)/r.height));
+ const last=sketchPoints.at(-1);
+ if(last&&Math.hypot(x-last[0],y-last[1])<.008)return;
+ if(sketchPoints.length<350)sketchPoints.push([x,y]);
+ drawSketch();
+}
+sketchCanvas.addEventListener('pointerdown',e=>{
+ e.preventDefault();sketchPoints=[];sketchDrawing=true;addSketchPoint(e);
+ try{sketchCanvas.setPointerCapture(e.pointerId)}catch{}
+});
+sketchCanvas.addEventListener('pointermove',e=>{if(!sketchDrawing)return;e.preventDefault();addSketchPoint(e);});
+function endSketch(e){if(sketchDrawing){e.preventDefault();addSketchPoint(e);}sketchDrawing=false;}
+sketchCanvas.addEventListener('pointerup',endSketch);
+sketchCanvas.addEventListener('pointercancel',endSketch);
+$('sketchTool').onclick=()=>{
+ if(placing||armedShape)cancelPlacement();
+ sketchDialog.showModal();drawSketch();
+};
+$('sketchCancel').onclick=()=>sketchDialog.close();
+$('sketchClear').onclick=()=>{sketchPoints=[];drawSketch();};
+$('sketchCreate').onclick=()=>{
+ if(sketchPoints.length<4){notify('手描きの線をもう少し長く描いてください。');return;}
+ const points=sketchPoints.slice();
+ let area=0;
+ for(let i=0;i<points.length;i++){const a=points[i],b=points[(i+1)%points.length];area+=a[0]*b[1]-b[0]*a[1];}
+ if(Math.abs(area)<.002){notify('輪郭の内側に面積がありません。囲むように描いてね。');return;}
+ const h=Number($('sketchHeight').value);
+ if(!Number.isFinite(h)||h<1||h>100){notify('高さは1〜100mmで指定してください');return;}
+ try{
+  const rec=defaultRec('sketch');rec.path=points;rec.w=40;rec.d=30;rec.h=h;rec.name='手描き形状';
+  undoSnapshot();addRec(rec);autosave();sketchDialog.close();
+  notify('手描きの形を立体にしました。ドラッグで位置を移動してね。');
+ }catch(e){notify('手描き立体化エラー：'+(e.message||e));}
+};
+drawSketch();
 
 const ray=new THREE.Raycaster();const cursor=new THREE.Vector2();let pointerDown;
 
@@ -1184,8 +1268,12 @@ $('combineTop').onclick=combineSelection;
 $('saveStl').onclick=async()=>{try{const stl=await toStlBuffer();download(stl,'manabi3d-model.stl','model/stl');notify('結合・穴あけを反映したSTLを端末に保存しました');}catch(e){notify(`STL保存失敗：${e.message}`);}};
 $('saveProject').onclick=()=>{download(JSON.stringify(documentData(),null,2),'manabi3d-project.m3d.json','application/json');notify('再編集用プロジェクトを端末に保存しました');};
 function validateProject(raw){const doc=JSON.parse(raw);if(doc.schema!=='manabi3d-project'||doc.version!==1||!Array.isArray(doc.items)||doc.items.length>150)throw Error('このバージョンで読み込めない編集データです');
- const result=[];for(const old of doc.items){const type=old.type;if(!["box","cylinder","sphere","cone","roof","hex","tube","torus","text","imported","pyramid","wedge","halfcylinder","hemisphere","thinring","pentagon","icosa","octa","dodeca","star","starpeak","heart","cup","gem","paraboloid","frustum","arch","spin","wave","tetra"].includes(type))throw Error('未対応の図形です');const rec={id:newId(),type,name:String(old.name||type).slice(0,60),w:Number(old.w),d:Number(old.d),h:Number(old.h),x:Number(old.x),y:Number(old.y),z:Number(old.z),angle:Number(old.angle),hole:!!old.hole,...(type==='text'?{text:String(old.text||'名前').slice(0,20)}:{})};
- if([rec.w,rec.d,rec.h].some(v=>!Number.isFinite(v)||v<=0||v>1000)||[rec.x,rec.y,rec.z,rec.angle].some(v=>!Number.isFinite(v)||Math.abs(v)>10000))throw Error('数値に不正があります');if(type==='imported'){if(!Array.isArray(old.vertices)||old.vertices.length>3000000||old.vertices.length%9!==0||old.vertices.some(v=>!Number.isFinite(v)))throw Error('STL形状が不正です');rec.vertices=old.vertices;rec.baseW=Number(old.baseW);rec.baseD=Number(old.baseD);rec.baseH=Number(old.baseH);if([rec.baseW,rec.baseD,rec.baseH].some(v=>!Number.isFinite(v)||v<=0))throw Error('元の寸法が不正です');}result.push(rec);}return result;}
+ const result=[];for(const old of doc.items){const type=old.type;if(!["box","cylinder","sphere","cone","roof","hex","tube","torus","text","imported","sketch","pyramid","wedge","halfcylinder","hemisphere","thinring","pentagon","icosa","octa","dodeca","star","starpeak","heart","cup","gem","paraboloid","frustum","arch","spin","wave","tetra"].includes(type))throw Error('未対応の図形です');const rec={id:newId(),type,name:String(old.name||type).slice(0,60),w:Number(old.w),d:Number(old.d),h:Number(old.h),x:Number(old.x),y:Number(old.y),z:Number(old.z),angle:Number(old.angle),hole:!!old.hole,...(type==='text'?{text:String(old.text||'名前').slice(0,20)}:{})};
+ if([rec.w,rec.d,rec.h].some(v=>!Number.isFinite(v)||v<=0||v>1000)||[rec.x,rec.y,rec.z,rec.angle].some(v=>!Number.isFinite(v)||Math.abs(v)>10000))throw Error('数値に不正があります');if(type==='sketch'){
+  if(!Array.isArray(old.path)||old.path.length<3||old.path.length>350||old.path.some(p=>!Array.isArray(p)||p.length!==2||p.some(n=>!Number.isFinite(n)||Math.abs(n)>1)))throw Error('手描きの輪郭データが不正です');
+  rec.path=old.path.map(p=>p.slice());
+ }
+ if(type==='imported'){if(!Array.isArray(old.vertices)||old.vertices.length>3000000||old.vertices.length%9!==0||old.vertices.some(v=>!Number.isFinite(v)))throw Error('STL形状が不正です');rec.vertices=old.vertices;rec.baseW=Number(old.baseW);rec.baseD=Number(old.baseD);rec.baseH=Number(old.baseH);if([rec.baseW,rec.baseD,rec.baseH].some(v=>!Number.isFinite(v)||v<=0))throw Error('元の寸法が不正です');}result.push(rec);}return result;}
 function loadProjectString(raw){const recs=validateProject(raw);removeAll();for(const rec of recs)addRec(rec,false);setSelected(recs.at(-1)?.id||null,false);$('emptyHelp').hidden=!!items.length;autosave();notify(`${recs.length}個の図形を読み込みました`);}
 $('loadProject').onclick=()=>$('projectFile').click();$('projectFile').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{loadProjectString(await f.text());}catch(e){notify(`編集データ読込失敗：${e.message}`);}finally{e.target.value='';}};
 $('openStl').onclick=()=>$('stlFile').click();$('stlFile').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{if(f.size>12*1024*1024)throw Error('試作版の読み込み上限は12MB');const buffer=await f.arrayBuffer();const geom=new STLLoader().parse(buffer);const attr=geom.getAttribute('position');if(!attr||attr.count<3||attr.count>1000000)throw Error('三角形数が大きすぎるか、STLが不正です');const mesh=geom.index?geom.toNonIndexed():geom;mesh.computeBoundingBox();const bb=mesh.boundingBox;const dx=bb.max.x-bb.min.x,dy=bb.max.y-bb.min.y,dz=bb.max.z-bb.min.z;if(Math.min(dx,dy,dz)<=0)throw Error('厚みがないSTLは読み込めません');mesh.translate(-(bb.min.x+bb.max.x)/2,-(bb.min.y+bb.max.y)/2,-bb.min.z);

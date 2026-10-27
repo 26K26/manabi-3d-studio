@@ -140,6 +140,14 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
 .sketchButtons{display:flex;justify-content:space-between;gap:7px;flex-wrap:wrap;margin-top:12px}
 .sketchButtons button{padding:11px 12px;min-height:40px}
 #sketchDialog input[type=number]{width:74px;padding:7px;border:1px solid #b0c8de;border-radius:7px}
+
+.rotationAxisOverlay{position:absolute;z-index:6;display:flex;align-items:center;gap:4px;padding:6px 7px;white-space:nowrap;max-width:max-content;background:#fffffff0;border:1px solid #9cbddd;border-radius:12px;box-shadow:0 6px 16px #2d4c6b33;transform:translate(-50%,-100%)}
+.rotationAxisOverlay[hidden]{display:none!important}
+.rotationAxisOverlay button{flex:0 0 auto;min-width:29px;min-height:34px;border:1px solid #bbcad9;border-radius:7px;background:#fff;color:#2b4b6c;font-size:12px;font-weight:750;padding:6px 7px;touch-action:manipulation}
+.rotationAxisOverlay button[data-axis=x]{color:#bf3030}.rotationAxisOverlay button[data-axis=y]{color:#198355}.rotationAxisOverlay button[data-axis=z]{color:#216bbd}
+.rotationAxisOverlay button[aria-pressed=true]{background:#dceeff;border:2px solid currentColor;box-shadow:0 1px 5px #3570aa33}
+.rotatePrompt,.rotateAngle{font-size:11px;color:#405c79}.rotateAngle{min-width:35px;text-align:right;font-variant-numeric:tabular-nums}
+@media(max-width:690px){.rotationAxisOverlay{gap:3px;padding:5px}.rotationAxisOverlay button{min-width:28px;min-height:37px;padding:4px 5px}.rotatePrompt{display:none}}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","three-bvh-csg":"https://esm.sh/three-bvh-csg@0.0.18?external=three"}}
@@ -168,7 +176,7 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
  </div>
  <div id="cadContextMenu" role="menu" aria-label="CAD図形の操作" hidden><button id="contextCopy" type="button" role="menuitem">⧉ 選択図形をコピー</button><button id="contextPaste" type="button" role="menuitem">▣ 貼り付け</button><button id="contextDuplicate" type="button" role="menuitem">⧉ すぐ複製</button><button id="contextDelete" type="button" role="menuitem" class="danger">🗑 選択図形を削除</button></div>
  <div id="cadBody">
-  <div id="canvasWrap"><canvas id="canvas3d" aria-label="3D CAD 作業領域"></canvas><div id="resizeOverlay" aria-label="ドラッグ式の寸法ハンドル"></div><div id="marquee" hidden aria-hidden="true"></div><div id="gripHint" hidden>● 赤＝幅　● 緑＝奥行　● 青＝高さ　● 紫＝全体　／　数字をクリックして直接入力</div><div id="emptyHelp">右の図形をドラッグして作業面に配置しよう</div><div id="axisHelp">図形をタップ：寸法表示／もう一度タップ：非表示 ／ ▧ 範囲選択：複数選択<br>複数選択して「🔗 結合・穴あけ」 ／ 赤い穴図形の重なり部分を除去</div></div>
+  <div id="canvasWrap"><canvas id="canvas3d" aria-label="3D CAD 作業領域"></canvas><div id="resizeOverlay" aria-label="ドラッグ式の寸法ハンドル"></div><div id="rotationAxisOverlay" class="rotationAxisOverlay" hidden role="group" aria-label="選択した図形の回転軸"><span class="rotatePrompt">回転軸</span><button type="button" id="rotateAxisX" data-axis="x" title="X軸まわりの回転リング">X</button><button type="button" id="rotateAxisY" data-axis="y" title="Y軸まわりの回転リング">Y</button><button type="button" id="rotateAxisZ" data-axis="z" title="Z軸まわりの回転リング">Z</button><button type="button" id="rotateMinus" title="選択軸を15度戻す">−15°</button><button type="button" id="rotatePlus" title="選択軸を15度回す">+15°</button><span id="rotateAxisAngle" class="rotateAngle">0°</span></div><div id="marquee" hidden aria-hidden="true"></div><div id="gripHint" hidden>● 赤＝幅　● 緑＝奥行　● 青＝高さ　● 紫＝全体　／　数字をクリックして直接入力</div><div id="emptyHelp">右の図形をドラッグして作業面に配置しよう</div><div id="axisHelp">図形のそばにあるX・Y・Zで回転軸を選択、リングをドラッグ ／ ▧ 範囲選択：複数選択<br>複数選択して「🔗 結合・穴あけ」 ／ 赤い穴図形の重なり部分を除去</div></div>
   <aside id="props" aria-label="図形の追加と編集">
    <div id="shapePanel">
     <h2>基本図形</h2>
@@ -224,7 +232,7 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
     <div id="textEditPanel" hidden><h3>文字（立体テキスト）</h3><label for="textContent" class="textFieldLabel">作品に入れる文字（20文字以内）</label><input id="textContent" type="text" maxlength="20" value="名前" placeholder="例：さくら、ABC、3年" autocomplete="off"><p class="hint">文字も実体・穴として扱えます。文字を置いた後に変更できます。長い文字は幅を調整してね。</p></div>
     <h3>大きさ (mm)</h3><div class="labels"><span>幅 X</span><span>奥行 Y</span><span>高さ Z</span></div><div class="triple"><input id="dimX" type="number" min="0.1" max="500" step="0.5" aria-label="幅 X"><input id="dimY" type="number" min="0.1" max="500" step="0.5" aria-label="奥行 Y"><input id="dimZ" type="number" min="0.1" max="500" step="0.5" aria-label="高さ Z"></div>
     <h3>配置 (mm)</h3><div class="labels"><span>X</span><span>Y</span><span>Z（底面）</span></div><div class="triple"><input id="posX" type="number" step="1" aria-label="位置 X"><input id="posY" type="number" step="1" aria-label="位置 Y"><input id="posZ" type="number" step="1" aria-label="位置 Z"></div>
-    <div class="control"><label for="angle">Z回転 (°)</label><input id="angle" type="number" step="5" value="0"></div>
+    <h3>回転角度 (°)</h3><div class="labels"><span>X軸</span><span>Y軸</span><span>Z軸</span></div><div class="triple"><input id="angleX" type="number" step="5" value="0" aria-label="X軸の回転角度"><input id="angleY" type="number" step="5" value="0" aria-label="Y軸の回転角度"><input id="angle" type="number" step="5" value="0" aria-label="Z軸の回転角度"></div><p class="hint">図形のそばのX・Y・Zボタンで軸を選ぶと、回転リングをドラッグできます。</p>
     <div class="sidebarActions" style="margin-top:10px"><button id="duplicate">複製</button><button id="remove" class="danger">削除</button></div>
    </div>
    <h3>図形一覧</h3><div id="shapeList"></div>
@@ -325,9 +333,9 @@ let clipboardRecords=null,clipboardPasteCount=0;
 let dimensionLabelsVisible=false;
 // Solo view affects CAD viewport only. The saved project and STL exports always use ALL items.
 let soloId=null;
-const selectInputs=['dimX','dimY','dimZ','posX','posY','posZ','angle'];
+const selectInputs=['dimX','dimY','dimZ','posX','posY','posZ','angleX','angleY','angle'];
 const newId=()=>`shape_${Date.now().toString(36)}_${++uid}`;
-function defaultRec(type){const names={box:'ボックス',cylinder:'円柱',sphere:'球',cone:'円すい',roof:'屋根',hex:'六角柱',tube:'パイプ',torus:'リング',text:'文字',pyramid:'四角すい',wedge:'くさび',halfcylinder:'半円柱',hemisphere:'半球',thinring:'薄いリング',pentagon:'五角柱',icosa:'二十面体',octa:'八面体',dodeca:'十二面体',star:'星形',starpeak:'立体スター',heart:'ハート',cup:'くり抜き円柱',gem:'宝石',paraboloid:'放物面',frustum:'角すい台',arch:'アーチ',spin:'回転体・こま',wave:'波形',tetra:'三角すい'};const flat=['star','starpeak','heart','thinring','gem','wave','sketch'];return {id:newId(),type,name:names[type]||'図形',w:type==='text'?56:type==='wave'?42:25,d:type==='text'?16:25,h:type==='text'?3:flat.includes(type)?8:25,x:0,y:0,z:0,angle:0,hole:false,...(type==='text'?{text:'名前'}:{})};}
+function defaultRec(type){const names={box:'ボックス',cylinder:'円柱',sphere:'球',cone:'円すい',roof:'屋根',hex:'六角柱',tube:'パイプ',torus:'リング',text:'文字',pyramid:'四角すい',wedge:'くさび',halfcylinder:'半円柱',hemisphere:'半球',thinring:'薄いリング',pentagon:'五角柱',icosa:'二十面体',octa:'八面体',dodeca:'十二面体',star:'星形',starpeak:'立体スター',heart:'ハート',cup:'くり抜き円柱',gem:'宝石',paraboloid:'放物面',frustum:'角すい台',arch:'アーチ',spin:'回転体・こま',wave:'波形',tetra:'三角すい'};const flat=['star','starpeak','heart','thinring','gem','wave','sketch'];return {id:newId(),type,name:names[type]||'図形',w:type==='text'?56:type==='wave'?42:25,d:type==='text'?16:25,h:type==='text'?3:flat.includes(type)?8:25,x:0,y:0,z:0,angle:0,angleX:0,angleY:0,hole:false,...(type==='text'?{text:'名前'}:{})};}
 
 // 文字を端末の日本語フォントからオフライン形状化する。Canvas raster → 境界線 → 閉じた押し出し形状。
 // 同梱フォントなしで、日本語・英数字をiPad / Chromebookで立体化できる。

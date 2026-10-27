@@ -1702,6 +1702,17 @@ $('sendToKiri').onclick=transfer;$('toSlice').onclick=enterFullPageKiri;
 try{const saved=localStorage.getItem('manabi3d-cad-draft-v1');if(saved){loadProjectString(saved);notify('このブラウザの前回の編集内容を復元しました');}else{notify('準備完了。図形を追加して始めよう。');}}catch(e){notify('ブラウザの保存データは使用できません。手動保存は可能です。');}
 
 if(new URLSearchParams(location.search).has('testShapes')){
+ // Debug-only snapshot of *world* bounds, available only with testShapes=1.
+ // This verifies rotated solids touch Z=0 and alignment preserves rotations.
+ window.__manabiSpatialSnapshot=()=>({
+  items:items.map(it=>{
+   const b=worldBounds(it);
+   return {id:it.id,name:it.name,x:it.x,y:it.y,z:it.z,
+    angle:it.angle,angleX:it.angleX||0,angleY:it.angleY||0,
+    bounds:{min:{...b.min},max:{...b.max}},selected:selectedIds.has(it.id)};
+  }),
+  reference:alignReferenceId
+ });
  window.__manabiTestShapes=()=>{
   const types=['pyramid','wedge','halfcylinder','hemisphere','thinring','pentagon','icosa','octa','dodeca','star','starpeak','heart','cup','gem','paraboloid','frustum','arch','spin','wave','tetra','sketch'];
   return types.map(type=>{

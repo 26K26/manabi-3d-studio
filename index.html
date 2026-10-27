@@ -123,6 +123,14 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
 #cadContextMenu button{padding:11px 13px;text-align:left;border:0;border-radius:7px;background:#fff;color:#244563;font-size:13px;min-height:40px}
 #cadContextMenu button:hover,#cadContextMenu button:focus-visible{background:#e7f2ff}
 #cadContextMenu button:disabled{opacity:.4;cursor:not-allowed}
+
+.shapeLibrary{margin-top:13px;border:1px solid #b7d0e8;background:#f5faff;border-radius:10px;padding:7px 9px 11px}
+.shapeLibrary>summary{cursor:pointer;font-size:13px;font-weight:750;color:#205a95;min-height:35px;display:list-item;padding:7px 2px}
+.shapeLibrary>summary:focus-visible{outline:2px solid #1880dc;border-radius:5px}
+.extraShapeGrid{margin-top:7px}
+.extraShapeGrid .symbol{font-size:32px;line-height:1.15;font-weight:900}
+.extraShapeGrid button{min-height:76px}
+.extraShapeGrid button span:last-child{font-size:10.5px}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","three-bvh-csg":"https://esm.sh/three-bvh-csg@0.0.18?external=three"}}
@@ -172,6 +180,32 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
      <button type="button" draggable="false" data-shape="torus"><svg viewBox="0 0 40 40" aria-hidden="true"><ellipse cx="20" cy="20" rx="17" ry="12" fill="#b5dffc"/><ellipse cx="20" cy="20" rx="7" ry="4.5" fill="#fff"/><path d="M3 20A17 12 0 1 0 37 20A17 12 0 1 0 3 20M13 20A7 4.5 0 1 0 27 20A7 4.5 0 1 0 13 20" fill="none" stroke="#3378bb" stroke-width="1.7"/></svg><span>リング</span></button>
      <button type="button" draggable="false" data-shape="text" aria-label="立体文字を配置"><span class="symbol" aria-hidden="true" style="font-weight:800;font-size:29px;">あA</span><span>文字</span></button>
     </div>
+    <details id="shapeLibrary" class="shapeLibrary">
+     <summary>▦ 図形ライブラリ（追加20種類）</summary>
+     <p class="sub">形を選んで作業面に配置。大きさ・回転・穴あけ・コピー・STL保存に対応。</p>
+     <div class="shapeGrid extraShapeGrid">
+      <button type="button" draggable="false" data-shape="pyramid" title="四角すい"><span class="symbol" style="color:#e6a928;text-shadow:1px 2px 0 #1232">🔺</span><span>四角すい</span></button>
+      <button type="button" draggable="false" data-shape="wedge" title="くさび"><span class="symbol" style="color:#3575c4;text-shadow:1px 2px 0 #1232">◢</span><span>くさび</span></button>
+      <button type="button" draggable="false" data-shape="halfcylinder" title="半円柱"><span class="symbol" style="color:#36a6bf;text-shadow:1px 2px 0 #1232">◒</span><span>半円柱</span></button>
+      <button type="button" draggable="false" data-shape="hemisphere" title="半球"><span class="symbol" style="color:#df44a9;text-shadow:1px 2px 0 #1232">◠</span><span>半球</span></button>
+      <button type="button" draggable="false" data-shape="thinring" title="薄いリング"><span class="symbol" style="color:#b68e52;text-shadow:1px 2px 0 #1232">◎</span><span>薄いリング</span></button>
+      <button type="button" draggable="false" data-shape="pentagon" title="五角柱"><span class="symbol" style="color:#345eac;text-shadow:1px 2px 0 #1232">⬟</span><span>五角柱</span></button>
+      <button type="button" draggable="false" data-shape="icosa" title="二十面体"><span class="symbol" style="color:#db395b;text-shadow:1px 2px 0 #1232">✦</span><span>二十面体</span></button>
+      <button type="button" draggable="false" data-shape="octa" title="八面体"><span class="symbol" style="color:#725ebf;text-shadow:1px 2px 0 #1232">◆</span><span>八面体</span></button>
+      <button type="button" draggable="false" data-shape="dodeca" title="十二面体"><span class="symbol" style="color:#d68931;text-shadow:1px 2px 0 #1232">⬡</span><span>十二面体</span></button>
+      <button type="button" draggable="false" data-shape="star" title="星形"><span class="symbol" style="color:#e7bf1d;text-shadow:1px 2px 0 #1232">★</span><span>星形</span></button>
+      <button type="button" draggable="false" data-shape="starpeak" title="立体スター"><span class="symbol" style="color:#32a7b0;text-shadow:1px 2px 0 #1232">✴</span><span>立体スター</span></button>
+      <button type="button" draggable="false" data-shape="heart" title="ハート"><span class="symbol" style="color:#be7183;text-shadow:1px 2px 0 #1232">♥</span><span>ハート</span></button>
+      <button type="button" draggable="false" data-shape="cup" title="くり抜き円柱"><span class="symbol" style="color:#91a4b9;text-shadow:1px 2px 0 #1232">◉</span><span>くり抜き円柱</span></button>
+      <button type="button" draggable="false" data-shape="gem" title="宝石"><span class="symbol" style="color:#5cc5d3;text-shadow:1px 2px 0 #1232">◇</span><span>宝石</span></button>
+      <button type="button" draggable="false" data-shape="paraboloid" title="放物面"><span class="symbol" style="color:#cad0d4;text-shadow:1px 2px 0 #1232">♟</span><span>放物面</span></button>
+      <button type="button" draggable="false" data-shape="frustum" title="角すい台"><span class="symbol" style="color:#87ad49;text-shadow:1px 2px 0 #1232">⬟</span><span>角すい台</span></button>
+      <button type="button" draggable="false" data-shape="arch" title="アーチ"><span class="symbol" style="color:#a88bd6;text-shadow:1px 2px 0 #1232">⌒</span><span>アーチ</span></button>
+      <button type="button" draggable="false" data-shape="spin" title="回転体・こま"><span class="symbol" style="color:#81c88d;text-shadow:1px 2px 0 #1232">♧</span><span>回転体・こま</span></button>
+      <button type="button" draggable="false" data-shape="wave" title="波形"><span class="symbol" style="color:#6c9ec8;text-shadow:1px 2px 0 #1232">〰</span><span>波形</span></button>
+      <button type="button" draggable="false" data-shape="tetra" title="三角すい"><span class="symbol" style="color:#b86c6f;text-shadow:1px 2px 0 #1232">◭</span><span>三角すい</span></button>
+     </div>
+    </details>
    </div>
    <div id="editPanel">
    <h2>図形の編集</h2><div id="selectionInfo" role="status">図形を選択してください。</div><button id="dimensionToggle" type="button" disabled aria-pressed="false" title="選択した図形の寸法ハンドルを表示・非表示">📏 寸法を表示</button>
@@ -272,7 +306,7 @@ let dimensionLabelsVisible=false;
 let soloId=null;
 const selectInputs=['dimX','dimY','dimZ','posX','posY','posZ','angle'];
 const newId=()=>`shape_${Date.now().toString(36)}_${++uid}`;
-function defaultRec(type){const names={box:'ボックス',cylinder:'円柱',sphere:'球',cone:'円すい',roof:'屋根',hex:'六角柱',tube:'パイプ',torus:'リング',text:'文字'};return {id:newId(),type,name:names[type]||'図形',w:type==='text'?56:25,d:type==='text'?16:25,h:type==='text'?3:25,x:0,y:0,z:0,angle:0,hole:false,...(type==='text'?{text:'名前'}:{})};}
+function defaultRec(type){const names={box:'ボックス',cylinder:'円柱',sphere:'球',cone:'円すい',roof:'屋根',hex:'六角柱',tube:'パイプ',torus:'リング',text:'文字',pyramid:'四角すい',wedge:'くさび',halfcylinder:'半円柱',hemisphere:'半球',thinring:'薄いリング',pentagon:'五角柱',icosa:'二十面体',octa:'八面体',dodeca:'十二面体',star:'星形',starpeak:'立体スター',heart:'ハート',cup:'くり抜き円柱',gem:'宝石',paraboloid:'放物面',frustum:'角すい台',arch:'アーチ',spin:'回転体・こま',wave:'波形',tetra:'三角すい'};const flat=['star','starpeak','heart','thinring','gem','wave'];return {id:newId(),type,name:names[type]||'図形',w:type==='text'?56:type==='wave'?42:25,d:type==='text'?16:25,h:type==='text'?3:flat.includes(type)?8:25,x:0,y:0,z:0,angle:0,hole:false,...(type==='text'?{text:'名前'}:{})};}
 
 // 文字を端末の日本語フォントからオフライン形状化する。Canvas raster → 境界線 → 閉じた押し出し形状。
 // 同梱フォントなしで、日本語・英数字をiPad / Chromebookで立体化できる。
@@ -349,6 +383,132 @@ function buildTextGeometry(rec){
  textShapeCache.set(key,geom.clone());return geom;
 }
 
+
+// Parametric geometry library. All objects use THREE geometry, so they are
+// editable, boolean-combinable and exportable to STL just like basic shapes.
+function extraOutline(points){
+ const shape=new THREE.Shape();
+ shape.moveTo(points[0][0],points[0][1]);
+ for(const [x,y] of points.slice(1))shape.lineTo(x,y);
+ shape.closePath();return shape;
+}
+function extraExtrude(shape){return new THREE.ExtrudeGeometry(shape,{depth:1,steps:1,bevelEnabled:false,curveSegments:28});}
+function extraStarPoints(n=5,outer=.5,inner=.24){
+ const pts=[];
+ for(let i=0;i<n*2;i++){
+  const a=Math.PI/2+i*Math.PI/n,rad=i%2?inner:outer;
+  pts.push([Math.cos(a)*rad,Math.sin(a)*rad]);
+ }
+ return pts;
+}
+function extraLathe(points,steps=48){
+ const g=new THREE.LatheGeometry(points.map(([r,z])=>new THREE.Vector2(r,z)),steps);
+ g.rotateX(Math.PI/2);
+ return g;
+}
+function extraSemicircleShape(inner=0){
+ const sh=new THREE.Shape();
+ if(inner<=0){
+  sh.moveTo(-.5,0);
+  for(let i=0;i<=40;i++){
+   const a=Math.PI-i*Math.PI/40;
+   sh.lineTo(Math.cos(a)*.5,Math.sin(a)*.5);
+  }
+  sh.closePath();
+ }else{
+  for(let i=0;i<=40;i++){const a=Math.PI-i*Math.PI/40,x=.5*Math.cos(a),y=.5*Math.sin(a);if(i===0)sh.moveTo(x,y);else sh.lineTo(x,y);}
+  for(let i=40;i>=0;i--){const a=Math.PI-i*Math.PI/40;sh.lineTo(inner*Math.cos(a),inner*Math.sin(a));}
+  sh.closePath();
+ }
+ return sh;
+}
+function extraNormalize(g,rec){
+ g.computeBoundingBox();
+ const b=g.boundingBox;
+ if(!b||b.isEmpty())throw Error('図形を生成できません');
+ const x=b.max.x-b.min.x,y=b.max.y-b.min.y,z=b.max.z-b.min.z;
+ if(Math.min(x,y,z)<0.000001)throw Error('図形に厚みがありません');
+ g.translate(-(b.min.x+b.max.x)/2,-(b.min.y+b.max.y)/2,-b.min.z);
+ g.scale(rec.w/x,rec.d/y,rec.h/z);
+ g.computeVertexNormals();
+ g.computeBoundingBox();
+ return g;
+}
+function extraGeometry(rec){
+ let g;
+ switch(rec.type){
+  case 'pyramid':
+   g=new THREE.ConeGeometry(.62,1,4,1,false);
+   g.rotateX(Math.PI/2);g.rotateZ(Math.PI/4);break;
+  case 'tetra':
+   g=new THREE.TetrahedronGeometry(.6);break;
+  case 'wedge':{
+   const shape=extraOutline([[-.5,-.5],[.5,-.5],[-.5,.5]]);
+   g=extraExtrude(shape);g.rotateX(Math.PI/2);break;
+  }
+  case 'halfcylinder':
+   g=extraExtrude(extraSemicircleShape());g.rotateX(Math.PI/2);break;
+  case 'hemisphere':{
+   const p=[[0,0],[.5,0]];
+   for(let i=1;i<=32;i++){const t=(i/32)*(Math.PI/2);p.push([.5*Math.cos(t),.5*Math.sin(t)]);}
+   g=extraLathe(p,56);break;
+  }
+  case 'thinring':{
+   const sh=new THREE.Shape();sh.absarc(0,0,.5,0,Math.PI*2,false);
+   const hole=new THREE.Path();hole.absarc(0,0,.42,0,Math.PI*2,true);sh.holes.push(hole);
+   g=extraExtrude(sh);break;
+  }
+  case 'pentagon':g=new THREE.CylinderGeometry(.55,.55,1,5);g.rotateX(Math.PI/2);break;
+  case 'icosa':g=new THREE.IcosahedronGeometry(.62,0);break;
+  case 'octa':g=new THREE.OctahedronGeometry(.62,0);break;
+  case 'dodeca':g=new THREE.DodecahedronGeometry(.62,0);break;
+  case 'star':g=extraExtrude(extraOutline(extraStarPoints()));break;
+  case 'starpeak':{
+   const pts=extraStarPoints();const xyz=[];
+   for(let i=0;i<pts.length;i++){
+    const a=pts[i],b=pts[(i+1)%pts.length];
+    xyz.push(a[0],a[1],0,b[0],b[1],0,0,0,1);
+    xyz.push(0,0,0,b[0],b[1],0,a[0],a[1],0);
+   }
+   g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(xyz,3));break;
+  }
+  case 'heart':{
+   const sh=new THREE.Shape();
+   sh.moveTo(0,-.5);
+   sh.bezierCurveTo(-.12,-.39,-.55,-.10,-.50,.22);
+   sh.bezierCurveTo(-.47,.48,-.13,.56,0,.33);
+   sh.bezierCurveTo(.13,.56,.47,.48,.50,.22);
+   sh.bezierCurveTo(.55,-.10,.12,-.39,0,-.5);
+   g=extraExtrude(sh);break;
+  }
+  case 'cup':
+   g=extraLathe([[0,-.5],[.46,-.5],[.50,-.45],[.50,.49],[.36,.49],[.36,-.25],[0,-.25]],60);break;
+  case 'gem':
+   g=extraLathe([[0,-.47],[.31,-.47],[.49,-.13],[.51,.02],[.34,.38],[0,.41]],8);break;
+  case 'paraboloid':{
+   const p=[[0,-.5],[.5,-.5]];
+   for(let i=1;i<=32;i++){const t=i/32;p.push([.5*Math.sqrt(1-t),t-.5]);}
+   g=extraLathe(p,60);break;
+  }
+  case 'frustum':
+   g=new THREE.CylinderGeometry(.30,.56,1,4,1,false);g.rotateX(Math.PI/2);g.rotateZ(Math.PI/4);break;
+  case 'arch':
+   g=extraExtrude(extraSemicircleShape(.33));g.rotateX(Math.PI/2);break;
+  case 'spin':
+   g=extraLathe([[0,-.6],[.065,-.55],[.10,-.27],[.36,-.16],[.55,-.08],[.45,.02],[.25,.15],[.14,.32],[.11,.52],[0,.58]],60);break;
+  case 'wave':{
+   const upper=[],lower=[],steps=42;
+   for(let i=0;i<=steps;i++){
+    const t=i/steps,x=t-.5,y=.16*Math.sin(4*Math.PI*t);
+    upper.push([x,y+.095]);lower.unshift([x,y-.095]);
+   }
+   g=extraExtrude(extraOutline([...upper,...lower]));break;
+  }
+  default:throw Error('この図形はまだ生成できません: '+rec.type);
+ }
+ return extraNormalize(g,rec);
+}
+
 function geometryOf(rec){let geom;
  if(rec.type==='text'){geom=buildTextGeometry(rec);}
  else if(rec.type==='box'){geom=new THREE.BoxGeometry(rec.w,rec.d,rec.h);geom.translate(0,0,rec.h/2);}
@@ -360,6 +520,7 @@ function geometryOf(rec){let geom;
  else if(rec.type==='tube'){const shape=new THREE.Shape();shape.absarc(0,0,.5,0,Math.PI*2,false);const hole=new THREE.Path();hole.absarc(0,0,.29,0,Math.PI*2,true);shape.holes.push(hole);geom=new THREE.ExtrudeGeometry(shape,{depth:1,bevelEnabled:false,curveSegments:48});geom.scale(rec.w,rec.d,rec.h);}
  else if(rec.type==='roof'){const shape=new THREE.Shape();shape.moveTo(-.5,0);shape.lineTo(.5,0);shape.lineTo(0,1);shape.closePath();geom=new THREE.ExtrudeGeometry(shape,{depth:1,bevelEnabled:false});geom.rotateX(Math.PI/2);geom.translate(0,.5,0);geom.scale(rec.w,rec.d,rec.h);}
  else if(rec.type==='imported'&&Array.isArray(rec.vertices)){geom=new THREE.BufferGeometry();geom.setAttribute('position',new THREE.Float32BufferAttribute(rec.vertices,3));geom.computeVertexNormals();geom.scale(rec.w/rec.baseW,rec.d/rec.baseD,rec.h/rec.baseH);}
+ else if(["pyramid","wedge","halfcylinder","hemisphere","thinring","pentagon","icosa","octa","dodeca","star","starpeak","heart","cup","gem","paraboloid","frustum","arch","spin","wave","tetra"].includes(rec.type)){geom=extraGeometry(rec);}
  else throw Error('未対応の図形タイプ: '+rec.type);
  geom.computeBoundingBox();geom.computeVertexNormals();return geom;}
 function addRec(rec,select=true){if(items.length>=150)throw Error('試作版では150個まで');const mat=new THREE.MeshStandardMaterial({color:0x4eaff4,roughness:.55,metalness:.02,side:THREE.DoubleSide,transparent:!!rec.hole,opacity:rec.hole?.32:1,depthWrite:!rec.hole});
@@ -678,7 +839,7 @@ function refreshPlacementUI(){
   ? `「${defaultRecLabel(armedShape)}」を配置中：作業面でタップ、またはドラッグして幅・奥行きを決めてね。（Escで解除）`
   : '① 実体/穴を選ぶ → ② ドラッグで配置。またはタップ後、作業面で幅・奥行きを指定。';
 }
-function defaultRecLabel(type){return {box:'ボックス',cylinder:'円柱',sphere:'球',cone:'円すい',roof:'屋根',hex:'六角柱',tube:'パイプ',torus:'リング',text:'文字'}[type]||'図形';}
+function defaultRecLabel(type){return {box:'ボックス',cylinder:'円柱',sphere:'球',cone:'円すい',roof:'屋根',hex:'六角柱',tube:'パイプ',torus:'リング',text:'文字',pyramid:'四角すい',wedge:'くさび',halfcylinder:'半円柱',hemisphere:'半球',thinring:'薄いリング',pentagon:'五角柱',icosa:'二十面体',octa:'八面体',dodeca:'十二面体',star:'星形',starpeak:'立体スター',heart:'ハート',cup:'くり抜き円柱',gem:'宝石',paraboloid:'放物面',frustum:'角すい台',arch:'アーチ',spin:'回転体・こま',wave:'波形',tetra:'三角すい'}[type]||'図形';}
 $('roleSolid').addEventListener('click',()=>{newShapeRole='solid';refreshPlacementUI();notify('通常の立体を配置するモード');});
 $('roleHole').addEventListener('click',()=>{newShapeRole='hole';refreshPlacementUI();notify('穴モード：切り抜き用の半透明な図形を置いて、結合・切り抜きを押してね');});
 function discardGhost(){
@@ -1023,7 +1184,7 @@ $('combineTop').onclick=combineSelection;
 $('saveStl').onclick=async()=>{try{const stl=await toStlBuffer();download(stl,'manabi3d-model.stl','model/stl');notify('結合・穴あけを反映したSTLを端末に保存しました');}catch(e){notify(`STL保存失敗：${e.message}`);}};
 $('saveProject').onclick=()=>{download(JSON.stringify(documentData(),null,2),'manabi3d-project.m3d.json','application/json');notify('再編集用プロジェクトを端末に保存しました');};
 function validateProject(raw){const doc=JSON.parse(raw);if(doc.schema!=='manabi3d-project'||doc.version!==1||!Array.isArray(doc.items)||doc.items.length>150)throw Error('このバージョンで読み込めない編集データです');
- const result=[];for(const old of doc.items){const type=old.type;if(!['box','cylinder','sphere','cone','roof','hex','tube','torus','text','imported'].includes(type))throw Error('未対応の図形です');const rec={id:newId(),type,name:String(old.name||type).slice(0,60),w:Number(old.w),d:Number(old.d),h:Number(old.h),x:Number(old.x),y:Number(old.y),z:Number(old.z),angle:Number(old.angle),hole:!!old.hole,...(type==='text'?{text:String(old.text||'名前').slice(0,20)}:{})};
+ const result=[];for(const old of doc.items){const type=old.type;if(!["box","cylinder","sphere","cone","roof","hex","tube","torus","text","imported","pyramid","wedge","halfcylinder","hemisphere","thinring","pentagon","icosa","octa","dodeca","star","starpeak","heart","cup","gem","paraboloid","frustum","arch","spin","wave","tetra"].includes(type))throw Error('未対応の図形です');const rec={id:newId(),type,name:String(old.name||type).slice(0,60),w:Number(old.w),d:Number(old.d),h:Number(old.h),x:Number(old.x),y:Number(old.y),z:Number(old.z),angle:Number(old.angle),hole:!!old.hole,...(type==='text'?{text:String(old.text||'名前').slice(0,20)}:{})};
  if([rec.w,rec.d,rec.h].some(v=>!Number.isFinite(v)||v<=0||v>1000)||[rec.x,rec.y,rec.z,rec.angle].some(v=>!Number.isFinite(v)||Math.abs(v)>10000))throw Error('数値に不正があります');if(type==='imported'){if(!Array.isArray(old.vertices)||old.vertices.length>3000000||old.vertices.length%9!==0||old.vertices.some(v=>!Number.isFinite(v)))throw Error('STL形状が不正です');rec.vertices=old.vertices;rec.baseW=Number(old.baseW);rec.baseD=Number(old.baseD);rec.baseH=Number(old.baseH);if([rec.baseW,rec.baseD,rec.baseH].some(v=>!Number.isFinite(v)||v<=0))throw Error('元の寸法が不正です');}result.push(rec);}return result;}
 function loadProjectString(raw){const recs=validateProject(raw);removeAll();for(const rec of recs)addRec(rec,false);setSelected(recs.at(-1)?.id||null,false);$('emptyHelp').hidden=!!items.length;autosave();notify(`${recs.length}個の図形を読み込みました`);}
 $('loadProject').onclick=()=>$('projectFile').click();$('projectFile').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{loadProjectString(await f.text());}catch(e){notify(`編集データ読込失敗：${e.message}`);}finally{e.target.value='';}};

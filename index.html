@@ -588,7 +588,7 @@ function geometryOf(rec){let geom;
  else throw Error('未対応の図形タイプ: '+rec.type);
  geom.computeBoundingBox();geom.computeVertexNormals();return geom;}
 function addRec(rec,select=true){if(items.length>=150)throw Error('試作版では150個まで');const mat=new THREE.MeshStandardMaterial({color:0x4eaff4,roughness:.55,metalness:.02,side:THREE.DoubleSide,transparent:!!rec.hole,opacity:rec.hole?.32:1,depthWrite:!rec.hole});
- const mesh=new THREE.Mesh(geometryOf(rec),mat);mesh.userData.id=rec.id;mesh.position.set(rec.x,rec.y,rec.z);mesh.rotation.z=THREE.MathUtils.degToRad(rec.angle);scene.add(mesh);items.push({...rec,mesh});if(select)setSelected(rec.id,false);$('emptyHelp').hidden=true;renderShapeList();return mesh;}
+ const mesh=new THREE.Mesh(geometryOf(rec),mat);mesh.userData.id=rec.id;mesh.position.set(rec.x,rec.y,rec.z);mesh.rotation.order='XYZ';mesh.rotation.set(THREE.MathUtils.degToRad(Number(rec.angleX)||0),THREE.MathUtils.degToRad(Number(rec.angleY)||0),THREE.MathUtils.degToRad(Number(rec.angle)||0),'XYZ');scene.add(mesh);items.push({...rec,mesh});if(select)setSelected(rec.id,false);$('emptyHelp').hidden=true;renderShapeList();return mesh;}
 function removeAll(){soloId=null;for(const it of items){scene.remove(it.mesh);it.mesh.geometry.dispose();it.mesh.material.dispose();}items.length=0;setSelection([]);$('emptyHelp').hidden=false;}
 function chosenItems(){return items.filter(it=>selectedIds.has(it.id));}
 function syncSoloView(){
@@ -634,7 +634,7 @@ function setSelection(ids){
  $('textEditPanel').hidden=single?.type!=='text';if(single?.type==='text')$('textContent').value=single.text||'名前';
  const solidCount=picked.filter(i=>!i.hole).length,holeCount=picked.length-solidCount;
  $('selectionInfo').textContent=!picked.length?'図形を選択してください。':single?`${single.name}（${single.hole?'穴（切り抜き用）':'実体'}）`:`${picked.length}個を選択中（実体 ${solidCount}・穴 ${holeCount}）`;
- if(single){const values={dimX:single.w,dimY:single.d,dimZ:single.h,posX:single.x,posY:single.y,posZ:single.z,angle:single.angle};for(const id of selectInputs)$(id).value=Number(values[id].toFixed(3));}
+ if(single){const values={dimX:single.w,dimY:single.d,dimZ:single.h,posX:single.x,posY:single.y,posZ:single.z,angleX:Number(single.angleX)||0,angleY:Number(single.angleY)||0,angle:Number(single.angle)||0};for(const id of selectInputs)$(id).value=Number(values[id].toFixed(3));}
  $('holeToggle').disabled=!single;
  $('holeToggle').textContent=single?.hole?'● 実体に戻す':'◌ 穴にする';
  $('holeToggle').classList.toggle('is-hole',!!single?.hole);
@@ -643,7 +643,8 @@ function setSelection(ids){
  $('applyBoolean').textContent=holeCount?'🔗 結合・穴あけ':'🔗 実体を結合';
  $('combineTop').textContent=holeCount?'🔗 結合・穴あけ':'🔗 結合';
  if(single&&!rangeSelectActive&&activeMode!=='scale')transform.attach(single.mesh);else transform.detach();
- renderShapeList();updateResizeHandles();
+ syncRotationGizmo();
+ renderShapeList();updateResizeHandles();updateRotationAxisOverlay();
 }
 function setSelected(id,showDimensions=true){dimensionLabelsVisible=!!id&&!!showDimensions;setSelection(id?[id]:[]);}
 function toggleSelected(id){const ids=new Set(selectedIds);if(ids.has(id))ids.delete(id);else ids.add(id);dimensionLabelsVisible=ids.size===1;setSelection([...ids]);}
@@ -776,7 +777,14 @@ function updateResizeHandles(){
  }
 }
 
-function applyRec(it){const old=it.mesh.geometry;it.mesh.geometry=geometryOf(it);old.dispose();it.mesh.position.set(it.x,it.y,it.z);it.mesh.rotation.z=THREE.MathUtils.degToRad(it.angle);it.mesh.material.transparent=!!it.hole;it.mesh.material.opacity=it.hole?.32:1;it.mesh.material.depthWrite=!it.hole;updateResizeHandles();}
+function applyRec(it){
+ const old=it.mesh.geometry;it.mesh.geometry=geometryOf(it);old.dispose();
+ it.mesh.position.set(it.x,it.y,it.z);
+ it.mesh.rotation.order='XYZ';
+ it.mesh.rotation.set(THREE.MathUtils.degToRad(Number(it.angleX)||0),THREE.MathUtils.degToRad(Number(it.angleY)||0),THREE.MathUtils.degToRad(Number(it.angle)||0),'XYZ');
+ it.mesh.material.transparent=!!it.hole;it.mesh.material.opacity=it.hole?.32:1;it.mesh.material.depthWrite=!it.hole;
+ updateResizeHandles();updateRotationAxisOverlay();
+}
 function serializeRec(it){const {mesh,...clean}=it;return JSON.parse(JSON.stringify(clean));}
 function documentData(){return {schema:'manabi3d-project',version:1,units:'mm',title:'untitled',savedAt:new Date().toISOString(),items:items.map(serializeRec)};}
 let autosaveHandle=0;
@@ -788,9 +796,17 @@ function undoSnapshot(){
   $('undoObjects').disabled=false;
  }catch{}
 }
-function updateSelected(){const it=selected();if(!it)return;const vs=selectInputs.map(id=>Number($(id).value));if(vs.some(v=>!Number.isFinite(v))){notify('数値を入力してください');return;}let [w,d,h,x,y,z,angle]=vs;
- if([w,d,h].some(v=>v<.1||v>500)||[x,y,z].some(v=>Math.abs(v)>1000)){notify('大きさ0.1～500mm、位置±1000mmの範囲で指定してください');return;}
- undoSnapshot();Object.assign(it,{w,d,h,x,y,z,angle});applyRec(it);autosave();notify('寸法と配置を更新しました');}
+function updateSelected(){
+ const it=selected();if(!it)return;const vs=selectInputs.map(id=>Number($(id).value));
+ if(vs.some(v=>!Number.isFinite(v))){notify('数値を入力してください');return;}
+ const [w,d,h,x,y,z,angleX,angleY,angle]=vs;
+ if([w,d,h].some(v=>v<.1||v>500)||[x,y,z].some(v=>Math.abs(v)>1000)||[angleX,angleY,angle].some(v=>Math.abs(v)>36000)){
+  notify('大きさ0.1〜500mm、位置±1000mm、回転角度±36000°の範囲で指定してください');return;
+ }
+ undoSnapshot();Object.assign(it,{w,d,h,x,y,z,angleX,angleY,angle});
+ applyRec(it);setSelection([it.id]);autosave();
+ notify(`寸法・配置・回転を更新しました（X:${angleX}° Y:${angleY}° Z:${angle}°）`);
+}
 for(const id of selectInputs)$(id).addEventListener('change',updateSelected);
 function frameSelected(){const it=selected();if(!it){notify('図形を選択してください');return;}
  const center=new THREE.Vector3(it.x,it.y,it.z+it.h/2);
@@ -1087,7 +1103,7 @@ function drawPlacementGhost(rec){
  });
  placementGhost=new THREE.Mesh(geometry,material);
  placementGhost.position.set(rec.x,rec.y,rec.z);
- placementGhost.rotation.z=THREE.MathUtils.degToRad(rec.angle);
+ placementGhost.rotation.order='XYZ';placementGhost.rotation.set(THREE.MathUtils.degToRad(Number(rec.angleX)||0),THREE.MathUtils.degToRad(Number(rec.angleY)||0),THREE.MathUtils.degToRad(Number(rec.angle)||0),'XYZ');
  placementGhost.renderOrder=5;
  scene.add(placementGhost);
 }
@@ -1293,7 +1309,7 @@ window.addEventListener('pointercancel',endRangeSelection);
 renderer.domElement.addEventListener('pointerdown',e=>{if(rangeSelectActive||armedShape||placing)return;pointerDown={x:e.clientX,y:e.clientY};});
 renderer.domElement.addEventListener('pointerup',e=>{if(rangeSelectActive||armedShape||placing)return;if(!pointerDown)return;const dx=e.clientX-pointerDown.x,dy=e.clientY-pointerDown.y;pointerDown=null;if(Math.hypot(dx,dy)>5||transform.dragging)return;const r=renderer.domElement.getBoundingClientRect();cursor.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(cursor,camera);const hits=ray.intersectObjects(items.map(i=>i.mesh),false);if(e.shiftKey||e.ctrlKey||e.metaKey){if(hits.length)toggleSelected(hits[0].object.userData.id);}else{const id=hits.length?hits[0].object.userData.id:null;if(id&&currentId===id&&selectedIds.size===1){dimensionLabelsVisible=!dimensionLabelsVisible;setSelection([id]);}else setSelected(id);}});
 function resize(){const rect=$('canvasWrap').getBoundingClientRect();if(rect.width<1||rect.height<1)return;renderer.setSize(rect.width,rect.height,false);camera.aspect=rect.width/rect.height;camera.updateProjectionMatrix();}
-new ResizeObserver(resize).observe($('canvasWrap'));function render(){requestAnimationFrame(render);controls.update();renderer.render(scene,camera);updateResizeHandles();}resize();render();
+new ResizeObserver(resize).observe($('canvasWrap'));function render(){requestAnimationFrame(render);controls.update();renderer.render(scene,camera);updateResizeHandles();updateRotationAxisOverlay();}resize();render();
 function download(data,name,mime){const blob=data instanceof Blob?data:new Blob([data],{type:mime});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),20000);}
 async function composeGeometry(source=items){
  const solids=source.filter(i=>!i.hole),holes=source.filter(i=>i.hole);
@@ -1361,8 +1377,8 @@ $('combineTop').onclick=combineSelection;
 $('saveStl').onclick=async()=>{try{const stl=await toStlBuffer();download(stl,'manabi3d-model.stl','model/stl');notify('結合・穴あけを反映したSTLを端末に保存しました');}catch(e){notify(`STL保存失敗：${e.message}`);}};
 $('saveProject').onclick=()=>{download(JSON.stringify(documentData(),null,2),'manabi3d-project.m3d.json','application/json');notify('再編集用プロジェクトを端末に保存しました');};
 function validateProject(raw){const doc=JSON.parse(raw);if(doc.schema!=='manabi3d-project'||doc.version!==1||!Array.isArray(doc.items)||doc.items.length>150)throw Error('このバージョンで読み込めない編集データです');
- const result=[];for(const old of doc.items){const type=old.type;if(!["box","cylinder","sphere","cone","roof","hex","tube","torus","text","imported","sketch","pyramid","wedge","halfcylinder","hemisphere","thinring","pentagon","icosa","octa","dodeca","star","starpeak","heart","cup","gem","paraboloid","frustum","arch","spin","wave","tetra"].includes(type))throw Error('未対応の図形です');const rec={id:newId(),type,name:String(old.name||type).slice(0,60),w:Number(old.w),d:Number(old.d),h:Number(old.h),x:Number(old.x),y:Number(old.y),z:Number(old.z),angle:Number(old.angle),hole:!!old.hole,...(type==='text'?{text:String(old.text||'名前').slice(0,20)}:{})};
- if([rec.w,rec.d,rec.h].some(v=>!Number.isFinite(v)||v<=0||v>1000)||[rec.x,rec.y,rec.z,rec.angle].some(v=>!Number.isFinite(v)||Math.abs(v)>10000))throw Error('数値に不正があります');if(type==='sketch'){
+ const result=[];for(const old of doc.items){const type=old.type;if(!["box","cylinder","sphere","cone","roof","hex","tube","torus","text","imported","sketch","pyramid","wedge","halfcylinder","hemisphere","thinring","pentagon","icosa","octa","dodeca","star","starpeak","heart","cup","gem","paraboloid","frustum","arch","spin","wave","tetra"].includes(type))throw Error('未対応の図形です');const rec={id:newId(),type,name:String(old.name||type).slice(0,60),w:Number(old.w),d:Number(old.d),h:Number(old.h),x:Number(old.x),y:Number(old.y),z:Number(old.z),angle:Number(old.angle??0),angleX:Number(old.angleX??0),angleY:Number(old.angleY??0),hole:!!old.hole,...(type==='text'?{text:String(old.text||'名前').slice(0,20)}:{})};
+ if([rec.w,rec.d,rec.h].some(v=>!Number.isFinite(v)||v<=0||v>1000)||[rec.x,rec.y,rec.z].some(v=>!Number.isFinite(v)||Math.abs(v)>10000)||[rec.angleX,rec.angleY,rec.angle].some(v=>!Number.isFinite(v)||Math.abs(v)>36000))throw Error('数値に不正があります');if(type==='sketch'){
   if(!Array.isArray(old.path)||old.path.length<3||old.path.length>350||old.path.some(p=>!Array.isArray(p)||p.length!==2||p.some(n=>!Number.isFinite(n)||Math.abs(n)>1)))throw Error('手描きの輪郭データが不正です');
   rec.path=old.path.map(p=>p.slice());
  }

@@ -80,6 +80,8 @@ jobs:
           command -v google-chrome || command -v chromium || command -v chromium-browser
 
       - name: Verify same-tab CAD handoff and slicing in Chromium
+        env:
+          LARGE_MODEL_SMOKE: '1'
         run: |
           CHROME_BIN="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
           CHROME_BIN="$CHROME_BIN" node experiments/kiri-local/smoke-fullpage.mjs test-site

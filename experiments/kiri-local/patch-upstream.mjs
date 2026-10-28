@@ -148,6 +148,59 @@ const seed='if (!SETUP.s && api.feature.seed) {';
 if(input.split(seed).length!==2)throw Error('Kiri sample seed logic changed');
 input=input.replace(seed,"if (!SETUP.s && api.feature.seed && !new URLSearchParams(location.search).has('manabi')) {");
 fs.writeFileSync(inputName,input);
+// Manabi cap FDM render layers: retaining full STL/G-code geometry is
+// essential, but materializing hundreds of large per-layer polygons in the
+// Worker consumes RAM before the browser-side lazy preview even starts.
+// Keep the exact computed slices. Generate lightweight display data for only
+// 48 evenly distributed cross-sections when a model exceeds 220 layers.
+const fdmSliceName=path.join(upstream,'src/kiri/mode/fdm/work/slice.js');
+let fdmSlice=fs.readFileSync(fdmSliceName,'utf8');
+const normalRender=`    async function renderSlices(plo, phi) {
+        forSlices(plo, phi, slice => {
+            let params = slice.params || process;
+            layerRender(slice, params, {
+                dark: controller.dark,
+                devel: controller.devel,
+                renderContext
+            });
+        }, "render");
+    }`;
+const limitedRender=`    async function renderSlices(plo, phi) {
+        const limit = slices.length > 220 ? 48 : 0;
+        if (limit) {
+            const step = Math.max(1, Math.ceil((slices.length - 1) / (limit - 1)));
+            console.log('MANABI PREVIEW SAMPLES', JSON.stringify({
+                allLayers:slices.length, maxPreviewLayers:limit, every:step
+            }));
+            slices.forEach((slice, index) => {
+                if (index === 0 || index === slices.length - 1 || index % step === 0) {
+                    let params = slice.params || process;
+                    layerRender(slice, params, {
+                        dark: controller.dark,
+                        devel: controller.devel,
+                        renderContext
+                    });
+                } else {
+                    // Empty render payload preserves exact layer indices and
+                    // metadata. The complete print polygons remain untouched.
+                    slice.output();
+                }
+                doupdate(slice.index, plo, phi, "render");
+            });
+            return;
+        }
+        forSlices(plo, phi, slice => {
+            let params = slice.params || process;
+            layerRender(slice, params, {
+                dark: controller.dark,
+                devel: controller.devel,
+                renderContext
+            });
+        }, "render");
+    }`;
+if(fdmSlice.split(normalRender).length!==2)throw Error('Upstream FDM render function moved');
+fdmSlice=fdmSlice.replace(normalRender,limitedRender);
+fs.writeFileSync(fdmSliceName,fdmSlice);
 // Manabi memory-safe preview: avoid creating WebGL geometry for every layer
 // immediately after slicing. Full computed slice data is retained for export.
 const stackName=path.join(upstream,'src/kiri/app/stack.js');

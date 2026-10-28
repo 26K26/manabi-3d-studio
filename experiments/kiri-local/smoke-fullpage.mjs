@@ -127,6 +127,10 @@ try{
  }));
  console.log('RESULT '+JSON.stringify(result));
  console.log('WORKER COUNT '+workers.length);
+ const minions=workers.filter(url=>url.endsWith('/minion.js'));
+ const coreWorkers=workers.filter(url=>url.endsWith('/worker.js'));
+ console.log('LOW MEMORY SLICING WORKERS '+JSON.stringify({core:coreWorkers.length,minions:minions.length}));
+ if(minions.length!==0||coreWorkers.length!==1)throw Error('Low-memory mode unexpectedly spawned parallel slicing workers');
  if(result.event!=='slice.end')throw Error('Missing slice.end');
  // Ensure visual WebGL geometry remains capped even when the slider asks
  // for all layers. Printing slices and their layer indices stay complete.

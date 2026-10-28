@@ -70,7 +70,7 @@ try{
  await page.goto(origin+'smoke.html',{waitUntil:'load',timeout:45000});
  const staged=await page.evaluate(async a=>window.ManabiKiriBridge.stage(new Uint8Array(a).buffer,{bedX:180,bedY:180,bedZ:180,height:.2}),cubeSTL());
  console.log('Staged STL in '+staged);
- await page.goto(origin+'kiri-local/kiri/?manabi=1&s=1',{waitUntil:'domcontentloaded',timeout:45000});
+ await page.goto(origin+'kiri-local/kiri/?manabi=1',{waitUntil:'domcontentloaded',timeout:45000});
  console.log('Navigated in SAME TAB to Kiri');
  await page.waitForFunction(()=>{
   const t=document.getElementById('manabiImportStatus')?.textContent||'';
@@ -147,12 +147,12 @@ try{
  // local handoff, then staging a second CAD transfer and navigating again.
  await page.goto(origin+'smoke.html',{waitUntil:'load'});
  await page.evaluate(async a=>window.ManabiKiriBridge.stage(new Uint8Array(a).buffer,{height:.2}),cubeSTL());
- await page.goto(origin+'kiri-local/kiri/?manabi=1&s=1',{waitUntil:'domcontentloaded'});
+ await page.goto(origin+'kiri-local/kiri/?manabi=1',{waitUntil:'domcontentloaded'});
  await page.waitForFunction(()=>window.kiri?.api?.widgets?.all?.().length===1,null,{timeout:45000});
  await page.evaluate(()=>window.kiri.api.space.save(true));
  await page.goto(origin+'smoke.html',{waitUntil:'load'});
  await page.evaluate(async a=>window.ManabiKiriBridge.stage(new Uint8Array(a).buffer,{height:.2}),cubeSTL());
- await page.goto(origin+'kiri-local/kiri/?manabi=1&s=1',{waitUntil:'domcontentloaded'});
+ await page.goto(origin+'kiri-local/kiri/?manabi=1',{waitUntil:'domcontentloaded'});
  await page.waitForFunction(()=>document.getElementById('manabiImportStatus')?.textContent?.includes('最新CADモデルを1個読み込みました'),null,{timeout:45000});
  let models=await page.evaluate(()=>window.kiri.api.widgets.all().length);
  console.log('MODELS AFTER SECOND CAD HANDOFF '+models);

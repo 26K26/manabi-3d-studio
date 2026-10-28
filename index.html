@@ -1752,7 +1752,7 @@ async function enterFullPageKiri(){
   });
   // First-party full-page Kiri. Its main workers don't compete with CAD's
   // Three.js WebGL scene and are no longer inside an iframe.
-  location.assign('/manabi-3d-studio/kiri-local/kiri/?manabi=1&s=1');
+  location.assign('/manabi-3d-studio/kiri-local/kiri/?manabi=1');
  }catch(e){
   enteringFullPageKiri=false;
   notify('スライス画面への移動に失敗：'+(e.message||e));

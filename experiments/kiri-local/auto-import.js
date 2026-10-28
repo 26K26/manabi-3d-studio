@@ -42,7 +42,7 @@
  const previewNotice=document.createElement('div');
  previewNotice.id='manabiMemoryPreviewNotice';
  previewNotice.hidden=true;
- previewNotice.textContent='省メモリ表示：広い範囲は最大12層を抽出表示（スライス計算・出力は全層）';
+ previewNotice.textContent='省メモリ表示：大きいモデルは代表断面のみ表示（印刷用の計算・出力は全層）';
  previewNotice.style.cssText='position:fixed;right:12px;bottom:14px;z-index:2147483599;max-width:min(350px,calc(100vw - 24px));background:#ffffffee;border:1px solid #a8c8e0;border-radius:8px;padding:6px 9px;color:#34526e;font:12px/1.5 system-ui;pointer-events:none;box-shadow:0 2px 9px #0002';
  document.body.append(previewNotice);
 

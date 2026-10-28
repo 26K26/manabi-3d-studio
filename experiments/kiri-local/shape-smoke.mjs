@@ -234,7 +234,16 @@ try{
  await page.locator('#canvas3d').click({position:{x:195,y:210}});
  await page.waitForFunction(()=>window.__manabiColorSnapshot().length===3,null,{timeout:10000});
  await page.locator('#propsToggle').click();
- if(!await page.locator('#editPanel').isVisible())throw Error('Mobile editing tab did not open');
+ await page.waitForTimeout(260);
+ const editState=await page.evaluate(()=>({
+  sheetOpen:document.getElementById('cadBody').classList.contains('mobile-panel-open'),
+  tab:document.getElementById('props').dataset.mobileTab,
+  sheetVisibility:getComputedStyle(document.getElementById('props')).visibility,
+  editDisplay:getComputedStyle(document.getElementById('editPanel')).display,
+  editVisibility:getComputedStyle(document.getElementById('editPanel')).visibility
+ }));
+ console.log('IPHONE EDIT SHEET '+JSON.stringify(editState));
+ if(!await page.locator('#editPanel').isVisible())throw Error('Mobile editing tab did not open: '+JSON.stringify(editState));
  await page.locator('[data-mobile-tab-button="actions"]').click();
  if(!await page.locator('#mobileActionPanel').isVisible())throw Error('Mobile actions tab did not open');
  const undoMobile=page.locator('[data-cad-action="undoObjects"]');

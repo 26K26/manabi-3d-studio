@@ -50,6 +50,16 @@ if(n!==1)throw Error('Kiri thread configuration moved: '+n);
 sync=sync.replace(before,`    // Embedded WebKit: avoid eager 4-minion pool; core slice worker remains active.
     const safariLike = /AppleWebKit/i.test(navigator.userAgent) && !/Chrom(?:e|ium)|Edg/i.test(navigator.userAgent);
     preferences.setThreaded(!safariLike);`);
+// Kiri normally hides all URL parameters after startup. Manabi relies on
+// ?manabi=1 to restore its model manager after a page reload. Preserve this
+// marker on our route, while leaving vanilla Kiri behavior unchanged.
+const hideOptions=`    if (kio >= 0) {
+        history.replaceState({}, '', wlp.substring(0,kio + 6));
+    }`;
+if(sync.split(hideOptions).length!==2)throw Error('Kiri URL cleanup code moved: expected one match');
+sync=sync.replace(hideOptions,`    if (kio >= 0 && !new URLSearchParams(location.search).has('manabi')) {
+        history.replaceState({}, '', wlp.substring(0,kio + 6));
+    }`);
 fs.writeFileSync(syncName,sync);
 // Kiri's worker-side parallel queue uses 'concurrent' even when the
 // optional minion pool has been disabled! Without this change WebKit may

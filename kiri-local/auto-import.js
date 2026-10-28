@@ -158,6 +158,9 @@ function copySlicerSelection(){
    const targets=models.filter(w=>current.has(w.id));
    if(!targets.length)return;
    api.platform.delete(targets);
+   // Persist immediately: a rapid reload must not interrupt the debounced
+   // save and leave stale widget metadata in Kiri's workspace storage.
+   api.space.save(true);
    scheduleSave();
    setStatus(targets.length+'個を削除しました。必要なら再スライスしてください。');
    refresh();
@@ -222,6 +225,9 @@ function copySlicerSelection(){
     api.platform.changed();
     // This CAD transfer is one-shot. Reloading the slicer must NOT
     // resurrect a model the user has intentionally deleted.
+    // Save the imported widget BEFORE consuming the one-shot STL transfer.
+    // Otherwise, an immediate reload can lose both the transfer and model.
+    api.space.save(true);
     window.ManabiKiriBridge.consume(pending).catch(e=>console.warn('Transfer cleanup issue',e));
     scheduleSave();
     refresh();

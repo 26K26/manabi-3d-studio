@@ -203,6 +203,50 @@ try{
  if((await page.locator('#selectedColorValue').textContent()).trim()!=='色が混在')throw Error('Mixed colors not indicated');
  console.log('PASS: selected-shape recolor, multi-selection, undo, autosave, hole-color restore and mixed colors');
 
+ // Portrait iPhone: the CAD workplane should be visible without a drawer
+ // covering it; shape selection should dismiss the sheet and arm placement.
+ await page.setViewportSize({width:390,height:660});
+ await page.reload({waitUntil:'domcontentloaded',timeout:45000});
+ await page.waitForFunction(()=>window.__manabiCadReady===true,null,{timeout:60000});
+ const mobile=await page.evaluate(()=>{
+  const canvas=document.getElementById('canvasWrap').getBoundingClientRect();
+  const header=document.querySelector('header').getBoundingClientRect();
+  const tabs=document.getElementById('cadBar').getBoundingClientRect();
+  const panel=document.getElementById('props');
+  return {screen:innerWidth,screenH:innerHeight,canvasW:canvas.width,canvasH:canvas.height,
+   headerH:header.height,toolsH:tabs.height,drawerClosed:getComputedStyle(panel).visibility==='hidden',
+   footerHidden:getComputedStyle(document.querySelector('footer')).display==='none',
+   horizontalOverflow:document.documentElement.scrollWidth>innerWidth+2};
+ });
+ console.log('IPHONE PORTRAIT LAYOUT '+JSON.stringify(mobile));
+ if(mobile.canvasW<370||mobile.canvasH<430||mobile.headerH>60||mobile.toolsH>108||
+    !mobile.drawerClosed||!mobile.footerHidden||mobile.horizontalOverflow)
+   throw Error('Mobile CAD workspace is still crowded: '+JSON.stringify(mobile));
+ if(!await page.locator('#mobileShapeToggle').isVisible()||!await page.locator('#toSlice').isVisible())
+   throw Error('Essential mobile toolbar controls are missing');
+ await page.locator('#mobileShapeToggle').click();
+ await page.waitForFunction(()=>getComputedStyle(document.getElementById('props')).visibility==='visible');
+ if(!await page.locator('#shapePanel').isVisible())throw Error('Shape palette did not open in bottom sheet');
+ await page.locator('[data-shape="box"]').first().click();
+ await page.waitForFunction(()=>getComputedStyle(document.getElementById('props')).visibility==='hidden');
+ const placing=await page.locator('#canvasWrap').evaluate(el=>el.classList.contains('placing'));
+ if(!placing)throw Error('Tap on mobile shape failed to arm workplane placement');
+ await page.locator('#canvas3d').click({position:{x:195,y:210}});
+ await page.waitForFunction(()=>window.__manabiColorSnapshot().length===3,null,{timeout:10000});
+ await page.locator('#propsToggle').click();
+ if(!await page.locator('#editPanel').isVisible())throw Error('Mobile editing tab did not open');
+ await page.locator('[data-mobile-tab-button="actions"]').click();
+ if(!await page.locator('#mobileActionPanel').isVisible())throw Error('Mobile actions tab did not open');
+ const undoMobile=page.locator('[data-cad-action="undoObjects"]');
+ if(await undoMobile.isDisabled())throw Error('Mobile undo button did not mirror actual action state');
+ await undoMobile.click();
+ await page.waitForFunction(()=>window.__manabiColorSnapshot().length===2,null,{timeout:10000});
+ await page.locator('#mobileMoreToggle').click();
+ await page.locator('#mobileDrawerBackdrop').click();
+ if(await page.locator('#props').evaluate(el=>getComputedStyle(el).visibility)!=='hidden')
+   throw Error('Tapping the workplane backdrop did not close the mobile sheet');
+ console.log('PASS: portrait iPhone full-height workspace, shape drawer, touch-place, edit/action tabs, undo and backdrop close');
+
 
 
 }catch(e){

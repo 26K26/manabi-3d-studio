@@ -128,6 +128,25 @@ try{
  console.log('RESULT '+JSON.stringify(result));
  console.log('WORKER COUNT '+workers.length);
  if(result.event!=='slice.end')throw Error('Missing slice.end');
+ // Ensure visual WebGL geometry remains capped even when the slider asks
+ // for all layers. Printing slices and their layer indices stay complete.
+ const memoryPreview=await page.evaluate(()=>{
+  const widget=window.kiri.api.widgets.all()[0];
+  const stack=widget?.stack?.obj;
+  return {lazy:stack?.manabiLazy,layers:stack?.slices?.length,webglLayers:stack?.manabiRendered?.size,limit:stack?.manabiMaxLayers};
+ });
+ console.log('MEMORY SAFE PREVIEW '+JSON.stringify(memoryPreview));
+ if(!memoryPreview.lazy||memoryPreview.layers<10)throw Error('Memory-safe Kiri layer rendering was not enabled');
+ if(memoryPreview.webglLayers>memoryPreview.limit)throw Error('Too many WebGL preview layers allocated after slicing');
+ const movedPreview=await page.evaluate(()=>{
+  const api=window.kiri.api;
+  const max=api.slider.getRange().max;
+  api.slider.setRange(0,max);
+  const stack=api.widgets.all()[0].stack.obj;
+  return {range:max,webglLayers:stack.manabiRendered.size,limit:stack.manabiMaxLayers};
+ });
+ console.log('MEMORY SAFE PREVIEW FULL RANGE '+JSON.stringify(movedPreview));
+ if(movedPreview.webglLayers>movedPreview.limit)throw Error('Selecting full slider range exceeded WebGL layer budget');
  // Regression 1: delete through our own slicer UI, then reload. A
  // consumed transfer must never recreate the intentionally deleted model.
  await page.locator('#manabiModelManagerSummary').click();

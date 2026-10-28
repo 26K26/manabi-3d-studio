@@ -35,9 +35,11 @@ try{
  const workers=[];
  page.on('worker',w=>{workers.push(w.url());console.log('WORKER '+w.url());});
  page.on('pageerror',e=>log.push('PAGE ERROR '+String(e)+' '+(e.stack||'')));
- page.on('console',m=>{if(['error','warning'].includes(m.type()))log.push('CONSOLE '+m.type()+' '+m.text());});
+ page.on('console',m=>{if(['error','warning'].includes(m.type()))log.push('CONSOLE '+m.type()+' '+m.text());if(m.text().startsWith('MANABI KIRI:'))console.log('APP STATUS '+m.text());});
+ page.on('framenavigated',f=>{if(f===page.mainFrame())console.log('NAVIGATION '+f.url());});
+ page.on('request',r=>{if(r.isNavigationRequest())console.log('NAV REQUEST '+r.method()+' '+r.url());});
  page.on('requestfailed',req=>log.push('FAILED REQUEST '+req.url()+' '+req.failure()));
- page.on('response',r=>{if(r.status()>=400)log.push('HTTP '+r.status()+' '+r.url());});
+ page.on('response',r=>{if(r.status()>=400){const err='HTTP '+r.status()+' '+r.request().method()+' '+r.url();log.push(err);console.log('NETWORK ERROR '+err);}});
  const origin='http://127.0.0.1:'+port+prefix;
  // Real browser check: all 20 parametric shapes and freehand sketch
  // produce sensible bounds, triangle meshes, STL, and round-trip save data.
@@ -134,6 +136,7 @@ try{
  await page.waitForFunction(()=>window.kiri.api.widgets.all().length===0,null,{timeout:10000});
  console.log('PASS: slicer model-management delete');
  await page.reload({waitUntil:'domcontentloaded'});
+ console.log('RELOAD URL '+page.url());
  await page.waitForFunction(()=>document.getElementById('manabiModelManager') && window.kiri?.api?.widgets?.all,null,{timeout:45000});
  await new Promise(ok=>setTimeout(ok,1800));
  let afterReload=await page.evaluate(()=>window.kiri.api.widgets.all().length);
@@ -158,6 +161,13 @@ try{
   console.log('PASS: CAD local transfer -> SAME TAB Kiri -> slice.end');
 }catch(e){
  console.error('SAME TAB SMOKE FAILURE '+String(e));
+ if(page){
+  console.error('FAILURE URL '+page.url());
+  try{
+   const state=await page.evaluate(()=>({title:document.title,readyState:document.readyState,pathname:location.pathname,search:location.search,hasManager:!!document.getElementById('manabiModelManager'),hasKiri:!!window.kiri,hasApi:!!window.kiri?.api,hasWidgets:!!window.kiri?.api?.widgets?.all,status:document.getElementById('manabiImportStatus')?.textContent||'',htmlStart:document.documentElement?.outerHTML?.slice(0,250)}));
+   console.error('FAILURE PAGE STATE '+JSON.stringify(state));
+  }catch(err){console.error('PAGE STATE UNAVAILABLE '+String(err));}
+ }
  console.error('BROWSER ERRORS '+JSON.stringify(log.slice(-35)));
  process.exitCode=1;
 }finally{

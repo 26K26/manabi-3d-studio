@@ -38,6 +38,13 @@
  const toolbar=document.createElement('div');
  toolbar.style.cssText='display:flex;gap:8px;flex-wrap:wrap';
  body.append(tip,toolbar,list);manager.append(summary,body);document.body.append(manager);
+ // Keep the user aware that wide preview ranges are sampled for lower RAM.
+ const previewNotice=document.createElement('div');
+ previewNotice.id='manabiMemoryPreviewNotice';
+ previewNotice.hidden=true;
+ previewNotice.textContent='省メモリ表示：広い範囲は最大12層を抽出表示（スライス計算・出力は全層）';
+ previewNotice.style.cssText='position:fixed;right:12px;bottom:14px;z-index:2147483599;max-width:min(350px,calc(100vw - 24px));background:#ffffffee;border:1px solid #a8c8e0;border-radius:8px;padding:6px 9px;color:#34526e;font:12px/1.5 system-ui;pointer-events:none;box-shadow:0 2px 9px #0002';
+ document.body.append(previewNotice);
 
  const all=()=>api?.widgets?.all?.()||[];
  const modelName=(w,i)=>String(w.meta?.file||('モデル '+(i+1)));
@@ -167,6 +174,9 @@ function copySlicerSelection(){
   }catch(e){setStatus('モデル削除エラー: '+(e.message||e));console.error(e)}
  };
  const bindEvents=()=>{
+  api.event.on('slice.begin',()=>{previewNotice.hidden=true;});
+  api.event.on('slice.end',()=>{previewNotice.hidden=false;});
+  api.event.on('preview.end',()=>{previewNotice.hidden=false;});
   for(const name of ['widget.add','widget.delete','widget.select','widget.deselect','view.set']){
    api.event.on(name,()=>setTimeout(refresh,0));
   }

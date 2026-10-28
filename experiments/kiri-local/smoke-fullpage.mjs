@@ -16,8 +16,8 @@ const server=createServer((req,res)=>{
  if(!(file===site||file.startsWith(site+sep))||!existsSync(file)||!statSync(file).isFile()){res.writeHead(404);res.end('Not found '+name);console.log('HTTP 404 '+name);return;}
  res.writeHead(200,{'Content-Type':mime(file)});res.end(readFileSync(file));
 });
-function cubeSTL(){
- const v=[[-10,-10,0],[10,-10,0],[10,10,0],[-10,10,0],[-10,-10,20],[10,-10,20],[10,10,20],[-10,10,20]];
+function cubeSTL(radius=10,height=20){
+ const v=[[-radius,-radius,0],[radius,-radius,0],[radius,radius,0],[-radius,radius,0],[-radius,-radius,height],[radius,-radius,height],[radius,radius,height],[-radius,radius,height]];
  const faces=[[0,3,2,1],[4,5,6,7],[0,1,5,4],[1,2,6,5],[2,3,7,6],[3,0,4,7]];
  const triangles=faces.flatMap(([a,b,c,d])=>[[a,b,c],[a,c,d]]);
  const buf=new ArrayBuffer(84+50*triangles.length),vw=new DataView(buf);
@@ -182,6 +182,32 @@ try{
  if(models!==1)throw Error('Repeated CAD handoff accumulated saved models: '+models);
  console.log('PASS: deletion persists and repeated CAD handoff replaces Safari workspace');
   console.log('PASS: CAD local transfer -> SAME TAB Kiri -> slice.end');
+  if(process.env.LARGE_MODEL_SMOKE==='1'){
+   // A 140x140x70 mm cube at 0.2mm creates ~350 layers. Verify the
+   // FDM worker no longer generates a full visual mesh for each one.
+   await page.goto(origin+'smoke.html',{waitUntil:'load'});
+   await page.evaluate(async a=>window.ManabiKiriBridge.stage(new Uint8Array(a).buffer,{bedX:180,bedY:180,bedZ:180,height:.2}),cubeSTL(70,70));
+   await page.goto(origin+'kiri-local/kiri/?manabi=1',{waitUntil:'domcontentloaded'});
+   await page.waitForFunction(()=>document.getElementById('manabiImportStatus')?.textContent?.includes('最新CADモデルを1個読み込みました'),null,{timeout:45000});
+   const largeResult=await page.evaluate(()=>new Promise((resolve,reject)=>{
+    const api=window.kiri.api;
+    const timer=setTimeout(()=>reject(Error('Large model slice timeout')),150000);
+    api.event.on('slice.end',()=>{
+     clearTimeout(timer);
+     const widget=api.widgets.all()[0];
+     const slices=widget.slices||[];
+     const visual=slices.filter(s=>s.layers && Object.keys(s.layers.layers||{}).length>0).length;
+     const rendered=widget.stack?.obj?.manabiRendered?.size;
+     resolve({layers:slices.length,workerVisualLayers:visual,webglLayers:rendered});
+    });
+    api.event.on('slice.error',e=>{clearTimeout(timer);reject(Error('Large model slice error: '+e))});
+    api.function.slice();
+   }));
+   console.log('LARGE MODEL SLICE '+JSON.stringify(largeResult));
+   if(largeResult.layers<220||largeResult.workerVisualLayers>50||largeResult.webglLayers>12)
+    throw Error('Large model failed memory-bounded preview: '+JSON.stringify(largeResult));
+   console.log('PASS: 140x140x70mm large FDM geometry, sampled worker layers and full slice.end');
+  }
 }catch(e){
  console.error('SAME TAB SMOKE FAILURE '+String(e));
  if(page){

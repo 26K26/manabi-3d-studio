@@ -1538,10 +1538,13 @@ function beginPlace(type,origin,pointerId,x,y){
  placing={type,origin,pointerId,role:newShapeRole,anchor:null,rec:null,entered:false,startX:x,startY:y};
  armedShape=type;controls.enabled=false;transform.detach();
  refreshPlacementUI();
- if(insideWork(x,y))updatePlace(x,y);
+ if(origin==='canvas'&&insideWork(x,y))updatePlace(x,y);
 }
 function updatePlace(x,y){
  if(!placing||!insideWork(x,y))return;
+ // On phones the palette floats above the workplane. A tap on a tile
+ // must not accidentally create a model behind the open bottom sheet.
+ if(isMobileCad()&&placing.origin==='palette'&&y>=$('props').getBoundingClientRect().top)return;
  const p=placing;
  if(!p.anchor){
   p.anchor=startAnchor(x,y);
@@ -1584,7 +1587,9 @@ function updatePlace(x,y){
 function finishPlace(x,y){
  if(!placing)return;
  const p=placing;
- const onWork=insideWork(x,y);
+ const insideMobilePalette=isMobileCad()&&p.origin==='palette'&&
+  y>=$('props').getBoundingClientRect().top;
+ const onWork=insideWork(x,y)&&!insideMobilePalette;
  if(onWork)updatePlace(x,y);
  discardGhost();placing=null;controls.enabled=true;
  if(!onWork||!p.rec||!p.entered){

@@ -39,17 +39,17 @@ code=code.slice(0,start)+`            case 'stl':
                 break;
 `+code.slice(end);
 fs.writeFileSync(name,code);
-// Kiri's default startup eagerly spawns four minion workers. Its large
-// worker bundles add memory pressure inside WebKit's embedded browsing
-// context (iPad/iPhone/Safari). Fall back to single-worker slicing there.
+// On modest school PCs as well as tablets, four minion workers duplicate
+// substantial Kiri memory. Use one core Worker for this isolated Manabi build.
+// The worker-side synchronous fallback below already supports all browsers.
 const syncName=path.join(upstream,'src/kiri/app/init/sync.js');
 let sync=fs.readFileSync(syncName,'utf8');
 const before='    preferences.setThreaded(true);';
 const n=sync.split(before).length-1;
 if(n!==1)throw Error('Kiri thread configuration moved: '+n);
-sync=sync.replace(before,`    // Embedded WebKit: avoid eager 4-minion pool; core slice worker remains active.
-    const safariLike = /AppleWebKit/i.test(navigator.userAgent) && !/Chrom(?:e|ium)|Edg/i.test(navigator.userAgent);
-    preferences.setThreaded(!safariLike);`);
+sync=sync.replace(before,`    // Manabi low-memory mode: don't start the four optional minion Workers.
+    // Leave the core Worker active; preserve complete slice/export precision.
+    preferences.setThreaded(false);`);
 // Kiri normally hides all URL parameters after startup. Manabi relies on
 // ?manabi=1 to restore its model manager after a page reload. Preserve this
 // marker on our route, while leaving vanilla Kiri behavior unchanged.
@@ -68,10 +68,10 @@ const workName=path.join(upstream,'src/kiri/run/worker.js');
 let work=fs.readFileSync(workName,'utf8');
 const oldConcurrent='concurrent = Math.round(Math.max(4, self.Worker && ccvalue > 3 ? ccvalue * 0.75 : 0)),';
 if(work.split(oldConcurrent).length!==2)throw Error('Kiri worker parallelism expression changed');
-work=work.replace(oldConcurrent,`concurrent = (/AppleWebKit/i.test(self.navigator?.userAgent||'') && !/Chrom(?:e|ium)|Edg/i.test(self.navigator?.userAgent||'')) ? 1 : Math.round(Math.max(4, self.Worker && ccvalue > 3 ? ccvalue * 0.75 : 0)),`);
-// Run per-layer slicing in the *main worker* if WebKit has no minion
-// pool. Kiri's upstream minwork.sliceZ rejects when concurrent < 2,
-// causing slice to remain at 0% and never emit slice.end.
+work=work.replace(oldConcurrent,'concurrent = 1,');
+// Run per-layer slicing in the core worker for all Manabi clients.
+// Upstream minwork.sliceZ rejects when concurrent < 2, so this fallback
+// preserves the full slicing calculation without allocating a minion pool.
 const sliceImport="import { sliceZ as sliceAtZ } from '../../geo/slicer.js';";
 if(!work.includes("import { Widget, newWidget }"))throw Error('Upstream worker imports moved');
 work=work.replace("import { Widget, newWidget }",sliceImport+"\nimport { Widget, newWidget }");

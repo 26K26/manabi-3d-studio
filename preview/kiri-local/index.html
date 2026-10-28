@@ -190,6 +190,69 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
 .shapeColorDialogActions button{min-height:43px;font-size:13px}
 .shapeColorNote{font-size:10.5px;line-height:1.55;color:#60758c;margin:10px 0 0}
 @media(max-width:510px){.shapeColorPresets{grid-template-columns:repeat(8,minmax(0,1fr));gap:9px}#shapeColorDialog{padding:13px}.shapeCustomRow{gap:6px}}
+
+/* iPhone / narrow portrait CAD: prioritize the workplane, not the palette. */
+#mobileShapeToggle,#mobileMoreToggle,#mobileSheetHeader,#mobileActionPanel{display:none}
+#mobileDrawerBackdrop{display:none}
+@media (max-width:690px){
+ html,body{height:100%;width:100%;overflow:hidden}
+ header{height:49px;min-height:49px;padding:3px 9px;flex-wrap:nowrap;gap:6px;overflow:hidden}
+ header strong{font-size:13px;letter-spacing:-.45px;flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+ header .tabs{margin:0 0 0 auto;gap:2px;flex-shrink:0}
+ header .tabs button{font-size:12px;min-width:64px;padding:6px 7px;min-height:37px}
+ header .grow{display:none}
+ #root{height:calc(100dvh - 49px);min-height:0}
+ footer{display:none}
+ #cadBody{position:relative;min-height:0}
+ #cadBar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) auto;grid-template-rows:42px 43px;gap:5px;padding:5px 6px;background:#fff;flex-wrap:nowrap;align-items:center}
+ #cadBar #modeTools{grid-column:1/-1;grid-row:1;display:flex;min-width:0;width:100%;overflow-x:auto;overflow-y:hidden;flex-wrap:nowrap;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+ #modeTools::-webkit-scrollbar{display:none}
+ #cadBar #modeTools button{flex:0 0 auto;padding:6px 10px;font-size:12px;min-height:35px;white-space:nowrap}
+ #cadBar > :not(#modeTools):not(#propsToggle):not(#toSlice):not(#mobileShapeToggle):not(#mobileMoreToggle){display:none!important}
+ #mobileShapeToggle,#mobileMoreToggle,#propsToggle{display:block!important;min-width:0;width:100%;height:40px;padding:6px 2px;font-size:12px;font-weight:650;white-space:nowrap}
+ #mobileShapeToggle{grid-column:1;grid-row:2;background:#e5f3ff;border-color:#91c2ee;color:#175e9d}
+ #propsToggle{grid-column:2;grid-row:2}
+ #mobileMoreToggle{grid-column:3;grid-row:2}
+ #toSlice{grid-column:4;grid-row:2;height:40px;padding:5px 8px;font-size:12px;min-width:78px;white-space:nowrap}
+ #mobileShapeToggle[aria-expanded=true],#propsToggle[aria-expanded=true],#mobileMoreToggle[aria-expanded=true]{background:#cce8ff;border-color:#247cd0;color:#165d9e}
+ #mobileDrawerBackdrop{position:absolute;inset:0;z-index:17;background:rgba(17,42,66,.33);touch-action:manipulation}
+ #cadBody.mobile-panel-open #mobileDrawerBackdrop{display:block}
+ #cadBody #props{display:flex!important;flex-direction:column;position:absolute;left:0;right:0;top:auto;bottom:0;z-index:18;width:100%;max-width:none;height:min(65dvh,525px);max-height:calc(100% - 8px);padding:0;background:#fff;box-shadow:0 -8px 24px #24394b30;border:1px solid #c6d4e4;border-bottom:0;border-radius:18px 18px 0 0;overflow:auto;overscroll-behavior:contain;transform:translateY(110%);visibility:hidden;pointer-events:none;transition:transform .18s ease,visibility .18s}
+ #cadBody.mobile-panel-open #props{transform:translateY(0);visibility:visible;pointer-events:auto}
+ #mobileSheetHeader{display:flex;flex:0 0 auto;align-items:center;gap:5px;position:sticky;top:0;z-index:2;padding:9px 10px;background:#fff;border-bottom:1px solid #dae3ef}
+ #mobileSheetHeader button{font-size:12px;padding:7px 9px;min-height:38px;flex:1;background:#f4f7fb}
+ #mobileSheetHeader button[aria-pressed=true]{background:#deefff;color:#1566b0;border-color:#79b9ed;font-weight:750}
+ #mobileSheetHeader #mobileSheetClose{flex:0 0 40px;font-size:22px;padding:2px;background:#f6f8fc}
+ #cadBody #props #shapePanel,#cadBody #props #editPanel{border:0;display:none;padding:11px 12px 18px;flex:1 1 auto;overflow:visible}
+ #cadBody #props[data-mobile-tab=shapes] #shapePanel,
+ #cadBody #props[data-mobile-tab=edit] #editPanel{display:block}
+ #cadBody #props[data-mobile-tab=actions] #mobileActionPanel{display:block}
+ #mobileActionPanel{padding:12px}
+ .mobileActionGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+ .mobileActionGrid button{min-height:44px;padding:8px 6px;font-size:12px;text-align:center}
+ #shapePanel h2{font-size:14px;margin:2px 0 8px}
+ #shapePanel .sub{display:none}
+ #shapePanel .rolePicker{margin:6px 0;gap:5px}
+ #shapePanel .rolePicker button{min-height:37px;padding:6px;font-size:12px}
+ #shapePanel #newShapeColor{min-height:39px}
+ #shapePanel #placeInfo{display:none}
+ #shapePanel .shapeGrid{gap:7px}
+ #shapePanel .shapeGrid button{min-height:67px;padding:5px 2px;gap:3px;touch-action:pan-y}
+ #shapePanel .shapeGrid svg{width:30px;height:30px}
+ #shapePanel .shapeLibrary{margin-top:9px}
+ #shapePanel .extraShapeGrid button{min-height:65px}
+ #emptyHelp{top:13px;left:50%;max-width:calc(100% - 20px);white-space:normal;text-align:center;font-size:11px;padding:5px 8px}
+ #axisHelp,#gripHint{display:none!important}
+ #cadBody #canvasWrap{min-height:0}
+ #shapeColorDialog{max-height:min(79dvh,600px)}
+}
+@media (max-width:370px){
+ header strong{font-size:12px}
+ header .tabs button{min-width:57px;padding:6px 5px}
+ #toSlice{min-width:67px;font-size:11px;padding:5px}
+ #mobileShapeToggle,#mobileMoreToggle,#propsToggle{font-size:11px}
+}
+@media (prefers-reduced-motion:reduce){#cadBody #props{transition:none}}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","three-bvh-csg":"https://esm.sh/three-bvh-csg@0.0.18?external=three"}}
@@ -210,11 +273,12 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
    <button id="modeScale" title="色付きのつまみをドラッグして寸法変更 (S)">⤢ 拡大縮小</button>
    <button id="modeRotate" title="回転ハンドル (R)">⟳ 回転</button><button id="rangeMode" type="button" aria-pressed="false" title="作業面を囲んで複数図形を選択。タップで選択の追加・解除">▧ 範囲選択</button><button id="focusSelected" title="選択した図形を見やすい大きさに表示">◎ 図形に寄る</button>
   </div>
+  <button id="mobileShapeToggle" type="button" aria-controls="props" aria-expanded="false">＋ 図形</button><button id="mobileMoreToggle" type="button" aria-controls="props" aria-expanded="false">⋯ 操作</button>
   <button id="addBox" class="primary">＋ 立方体</button><button id="addCylinder">＋ 円柱</button><button id="addSphere">＋ 球</button>
   <span class="sep"></span><button id="dropToFloor" type="button" disabled title="選択した図形の実際の底面をZ=0の作業面にぴったり接地（D）">⬇ 作業面に接地</button><button id="alignTop" type="button" disabled title="2個以上の選択図形の左・中央・右、前・中央・奥、下・中央・上をそろえる">⊞ 整列</button><button id="combineTop" type="button" class="primary" disabled title="選択した実体と穴を処理">🔗 結合・穴あけ</button><button id="soloToggle" type="button" disabled aria-pressed="false" title="選択した図形だけをCAD画面に一時表示。保存・スライスには影響しません">👁 単独表示</button><button id="clearSelection" type="button" title="選択した図形を解除">選択解除</button><button id="copyObjects" type="button" title="選択した図形をコピー（Ctrl/⌘+C）" disabled>⧉ コピー</button><button id="pasteObjects" type="button" title="コピーした図形を貼り付け（Ctrl/⌘+V）" disabled>▣ 貼り付け</button><button id="deleteObjects" type="button" class="danger" title="選択した図形を削除（Delete / Backspace）" disabled>🗑 選択図形を削除</button><button id="undoObjects" type="button" title="直前の操作を元に戻す（Ctrl/⌘+Z）" disabled>↶ 元に戻す</button><span class="sep"></span><button id="openStl" title="STLをCADに読み込み">STL読込</button><input id="stlFile" type="file" accept=".stl,model/stl,application/sla">
   <button id="saveStl">STL保存</button><button id="saveProject" class="cadOther" title="再編集可能な独自形式で保存">編集データ保存</button>
   <button id="loadProject" class="cadOther">編集データ読込</button><input id="projectFile" type="file" accept=".json,.m3d.json,application/json">
-  <span class="grow"></span><button id="propsToggle">寸法</button><button id="toSlice" class="primary">スライスへ →</button>
+  <span class="grow"></span><button id="propsToggle" type="button" aria-controls="props" aria-expanded="false">✎ 編集</button><button id="toSlice" class="primary">スライスへ →</button>
  </div>
  <div id="cadContextMenu" role="menu" aria-label="CAD図形の操作" hidden><button id="contextCopy" type="button" role="menuitem">⧉ 選択図形をコピー</button><button id="contextPaste" type="button" role="menuitem">▣ 貼り付け</button><button id="contextDuplicate" type="button" role="menuitem">⧉ すぐ複製</button><button id="contextDrop" type="button" role="menuitem">⬇ 作業面に接地</button><button id="contextAlign" type="button" role="menuitem">⊞ 選択図形を整列</button><button id="contextDelete" type="button" role="menuitem" class="danger">🗑 選択図形を削除</button></div>
  <div id="cadBody">
@@ -243,7 +307,14 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
   </div>
   <p class="alignHelp" id="alignFeedback" role="status">基準図形は動かしません。結合や穴あけの前にも使えます。</p>
  </div><div id="rotationAxisOverlay" class="rotationAxisOverlay" hidden role="group" aria-label="選択した図形の回転軸"><span class="rotatePrompt">回転軸</span><button type="button" id="rotateAxisX" data-axis="x" title="X軸まわりの回転リング">X</button><button type="button" id="rotateAxisY" data-axis="y" title="Y軸まわりの回転リング">Y</button><button type="button" id="rotateAxisZ" data-axis="z" title="Z軸まわりの回転リング">Z</button><button type="button" id="rotateMinus" title="選択軸を15度戻す">−15°</button><button type="button" id="rotatePlus" title="選択軸を15度回す">+15°</button><span id="rotateAxisAngle" class="rotateAngle">0°</span></div><div id="marquee" hidden aria-hidden="true"></div><div id="gripHint" hidden>● 赤＝幅　● 緑＝奥行　● 青＝高さ　● 紫＝全体　／　数字をクリックして直接入力</div><div id="emptyHelp">右の図形をドラッグして作業面に配置しよう</div><div id="axisHelp">図形のそばにあるX・Y・Zで回転軸を選択、リングをドラッグ ／ ▧ 範囲選択：複数選択<br>複数選択して「🔗 結合・穴あけ」 ／ 赤い穴図形の重なり部分を除去</div></div>
-  <aside id="props" aria-label="図形の追加と編集">
+  <div id="mobileDrawerBackdrop" aria-hidden="true"></div>
+  <aside id="props" aria-label="図形の追加と編集" data-mobile-tab="shapes">
+   <div id="mobileSheetHeader" role="group" aria-label="スマホ用CADメニュー">
+    <button type="button" data-mobile-tab-button="shapes" aria-pressed="true">＋ 図形</button>
+    <button type="button" data-mobile-tab-button="edit" aria-pressed="false">✎ 編集</button>
+    <button type="button" data-mobile-tab-button="actions" aria-pressed="false">⋯ 操作</button>
+    <button id="mobileSheetClose" type="button" aria-label="メニューを閉じる">×</button>
+   </div>
    <div id="shapePanel">
     <h2>基本図形</h2>
     <p class="sub">ドラッグで好きな位置に配置。タップ後に作業面をドラッグすると、幅と奥行きも決められます。</p>
@@ -307,6 +378,23 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
    <p>図形はmm単位。STLは端末に保存します。再編集を続けるなら「編集データ保存」も使ってね。STLは図形の種類や編集履歴を保持しません。</p>
    <p>穴を作るには①実体と穴を重ねる → ②上部の「▧ 範囲選択」で2つを囲む（または一覧で複数選択）→ ③「🔗 結合・穴あけ」を押します。結合後は完成形状になるため、編集前の保存がおすすめです。</p>
    <p class="hint">作品は同じブラウザにも自動保存（小さな作品が対象）。端末データ削除に備えて編集データを書き出してください。</p>
+   </div>
+   <div id="mobileActionPanel" aria-label="CADのその他の操作">
+    <div class="mobileActionGrid">
+     <button type="button" data-cad-action="dropToFloor">⬇ 作業面に接地</button>
+     <button type="button" data-cad-action="alignTop">⊞ 図形の整列</button>
+     <button type="button" data-cad-action="combineTop">🔗 結合・穴あけ</button>
+     <button type="button" data-cad-action="soloToggle">👁 単独表示</button>
+     <button type="button" data-cad-action="clearSelection">選択解除</button>
+     <button type="button" data-cad-action="copyObjects">⧉ コピー</button>
+     <button type="button" data-cad-action="pasteObjects">▣ 貼り付け</button>
+     <button type="button" data-cad-action="deleteObjects">🗑 選択図形を削除</button>
+     <button type="button" data-cad-action="undoObjects">↶ 元に戻す</button>
+     <button type="button" data-cad-action="openStl">STL読込</button>
+     <button type="button" data-cad-action="saveStl">STL保存</button>
+     <button type="button" data-cad-action="saveProject">編集データ保存</button>
+     <button type="button" data-cad-action="loadProject">編集データ読込</button>
+    </div>
    </div>
   </aside>
  </div>
@@ -1450,10 +1538,13 @@ function beginPlace(type,origin,pointerId,x,y){
  placing={type,origin,pointerId,role:newShapeRole,anchor:null,rec:null,entered:false,startX:x,startY:y};
  armedShape=type;controls.enabled=false;transform.detach();
  refreshPlacementUI();
- if(insideWork(x,y))updatePlace(x,y);
+ if(origin==='canvas'&&insideWork(x,y))updatePlace(x,y);
 }
 function updatePlace(x,y){
  if(!placing||!insideWork(x,y))return;
+ // On phones the palette floats above the workplane. A tap on a tile
+ // must not accidentally create a model behind the open bottom sheet.
+ if(isMobileCad()&&placing.origin==='palette'&&y>=$('props').getBoundingClientRect().top)return;
  const p=placing;
  if(!p.anchor){
   p.anchor=startAnchor(x,y);
@@ -1496,7 +1587,9 @@ function updatePlace(x,y){
 function finishPlace(x,y){
  if(!placing)return;
  const p=placing;
- const onWork=insideWork(x,y);
+ const insideMobilePalette=isMobileCad()&&p.origin==='palette'&&
+  y>=$('props').getBoundingClientRect().top;
+ const onWork=insideWork(x,y)&&!insideMobilePalette;
  if(onWork)updatePlace(x,y);
  discardGhost();placing=null;controls.enabled=true;
  if(!onWork||!p.rec||!p.entered){
@@ -1531,8 +1624,15 @@ for(const button of paletteButtons){
   e.preventDefault();
   try{button.releasePointerCapture(e.pointerId);}catch{}
   if(e.type==='pointercancel'){
-   discardGhost();placing=null;controls.enabled=true;armedShape=button.dataset.shape;refreshPlacementUI();
-  }else finishPlace(e.clientX,e.clientY);
+   // A vertical swipe on iPhone is for scrolling the library, not for
+   // closing the sheet or silently arming a model placement.
+   cancelPlacement();
+   return;
+  }
+  finishPlace(e.clientX,e.clientY);
+  // Tapping a palette tile on a phone arms placement and then reveals
+  // the unobstructed workplane; dragging into it still places directly.
+  if(isMobileCad())closeMobileSheet();
  };
  button.addEventListener('pointerup',end);
  button.addEventListener('pointercancel',end);
@@ -1761,7 +1861,77 @@ async function enterFullPageKiri(){
 }
 // Legacy setTab kept for CAD layout state; Kiri now launches as a route.
 function setTab(to){if(to!=='cad'&&(armedShape||placing))cancelPlacement();for(const [id,active] of [['cadPage',to==='cad'],['slicePage',to==='slice']])$(id).classList.toggle('active',active);$('tabCad').classList.toggle('active',to==='cad');$('tabSlice').classList.toggle('active',to==='slice');$('tabCad').setAttribute('aria-current',to==='cad'?'page':'false');$('tabSlice').setAttribute('aria-current',to==='slice'?'page':'false');if(to==='cad')requestAnimationFrame(resize);updateResizeHandles();}
-$('tabCad').onclick=()=>setTab('cad');$('tabSlice').onclick=enterFullPageKiri;$('backCad').onclick=()=>setTab('cad');$('propsToggle').onclick=()=>$('props').classList.toggle('is-hidden');
+$('tabCad').onclick=()=>setTab('cad');$('tabSlice').onclick=enterFullPageKiri;$('backCad').onclick=()=>setTab('cad');
+
+// Mobile CAD: the drawing surface has priority. Open the shape palette,
+// editing controls or existing actions as a temporary bottom sheet.
+const mobileCadMedia=window.matchMedia('(max-width:690px)');
+const mobileSheetButtons={
+ shapes:$('mobileShapeToggle'),
+ edit:$('propsToggle'),
+ actions:$('mobileMoreToggle')
+};
+function isMobileCad(){return mobileCadMedia.matches;}
+function closeMobileSheet(){
+ $('cadBody').classList.remove('mobile-panel-open');
+ for(const button of Object.values(mobileSheetButtons))button.setAttribute('aria-expanded','false');
+ if(isMobileCad())$('props').setAttribute('aria-hidden','true');
+ else $('props').removeAttribute('aria-hidden');
+}
+function openMobileSheet(tab='shapes'){
+ if(!isMobileCad())return;
+ const open=$('cadBody').classList.contains('mobile-panel-open');
+ if(open && $('props').dataset.mobileTab===tab){closeMobileSheet();return;}
+ $('props').dataset.mobileTab=tab;
+ $('props').scrollTop=0;
+ $('cadBody').classList.add('mobile-panel-open');
+ $('props').removeAttribute('aria-hidden');
+ for(const [name,button] of Object.entries(mobileSheetButtons)){
+  button.setAttribute('aria-expanded',String(name===tab));
+ }
+ for(const button of document.querySelectorAll('[data-mobile-tab-button]')){
+  button.setAttribute('aria-pressed',String(button.dataset.mobileTabButton===tab));
+ }
+ syncMobileActions();
+}
+function syncMobileActions(){
+ for(const button of document.querySelectorAll('[data-cad-action]')){
+  const original=$(button.dataset.cadAction);
+  button.disabled=!original||original.disabled;
+  if(original)button.title=original.title||'';
+ }
+}
+for(const [name,button] of Object.entries(mobileSheetButtons)){
+ button.addEventListener('click',()=>openMobileSheet(name));
+}
+for(const button of document.querySelectorAll('[data-mobile-tab-button]')){
+ button.addEventListener('click',()=>openMobileSheet(button.dataset.mobileTabButton));
+}
+$('mobileDrawerBackdrop').addEventListener('click',closeMobileSheet);
+$('mobileSheetClose').addEventListener('click',closeMobileSheet);
+for(const button of document.querySelectorAll('[data-cad-action]')){
+ button.addEventListener('click',()=>{
+  const original=$(button.dataset.cadAction);
+  if(!original||original.disabled)return;
+  original.click();
+  closeMobileSheet();
+ });
+}
+const mobileActionObserver=new MutationObserver(syncMobileActions);
+for(const button of document.querySelectorAll('[data-cad-action]')){
+ const original=$(button.dataset.cadAction);
+ if(original)mobileActionObserver.observe(original,{attributes:true,attributeFilter:['disabled','title']});
+}
+mobileCadMedia.addEventListener('change',()=>{
+ closeMobileSheet();
+ if(!isMobileCad())$('props').classList.remove('is-hidden');
+ requestAnimationFrame(resize);
+});
+window.addEventListener('keydown',event=>{
+ if(event.key==='Escape'&&$('cadBody').classList.contains('mobile-panel-open'))closeMobileSheet();
+});
+closeMobileSheet();
+syncMobileActions();
 // Printer profiles: only geometry envelope and UI defaults. Never assume firmware/G-code compatibility.
 function profile(){return PROFILES[$('printer').value]||PROFILES.generic;}
 function onProfile(){const p=profile();$('bedX').value=p.bed.x;$('bedY').value=p.bed.y;$('bedZ').value=p.bed.z;$('printerNozzle').value=String(p.nozzle);$('printerInfo').textContent=`${p.label} / ${p.bed.x} × ${p.bed.y} × ${p.bed.z} mm / 出力アダプター未検証`;notify('プロファイルを選択しました。実機互換性はまだ未検証です。');}

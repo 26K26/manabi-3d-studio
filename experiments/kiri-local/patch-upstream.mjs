@@ -213,5 +213,31 @@ function patchStack(before,after){
 patchStack("        this.freeMem = freeMem;","        this.freeMem = freeMem;\n        this.manabiLazy = new URLSearchParams(self.location.search).has('manabi');\n        this.manabiSources = this.manabiLazy ? [] : null;\n        this.manabiProxies = this.manabiLazy ? [] : null;\n        this.manabiRendered = this.manabiLazy ? new Set() : null;\n        this.manabiMaxLayers = 12;");
 patchStack("    setVisible(newMin, newMax) {\n        this.show();\n        for (let i=0, s=this.slices, len=s.length; i<len; i++) {\n            s[i].visible = i >= newMin && i <= newMax;\n            if (s[i].visible) this.lastVis = s[i];\n        }\n    }","    setVisible(newMin, newMax) {\n        this.show();\n        if (!this.manabiLazy) {\n            for (let i=0, s=this.slices, len=s.length; i<len; i++) {\n                s[i].visible = i >= newMin && i <= newMax;\n                if (s[i].visible) this.lastVis = s[i];\n            }\n            return;\n        }\n        const count=this.slices.length;\n        if(!count)return;\n        const low=Math.max(0,Math.min(count-1,Math.ceil(newMin)));\n        const high=Math.max(low,Math.min(count-1,Math.floor(newMax)));\n        const span=high-low+1;\n        const wanted=new Set();\n        if (span<=this.manabiMaxLayers) {\n            for (let i=low;i<=high;i++) wanted.add(i);\n        } else {\n            for (let i=0;i<this.manabiMaxLayers;i++) {\n                wanted.add(Math.round(low+(high-low)*i/(this.manabiMaxLayers-1)));\n            }\n        }\n        // Dispose previously visible WebGL geometry before allocating more.\n        for(const index of this.manabiRendered) {\n            if(wanted.has(index))continue;\n            const group=this.slices[index];\n            const removed=new Set(group.children);\n            for(const mesh of [...group.children]) {\n                group.remove(mesh);\n                THREE.dispose(mesh);\n            }\n            this.meshes=this.meshes.filter(mesh=>!removed.has(mesh));\n            for(const proxy of Object.values(this.manabiProxies[index]))proxy.linked=[];\n            group.visible=false;\n            this.manabiRendered.delete(index);\n        }\n        this.lastVis=null;\n        for(const index of [...wanted].sort((a,b)=>a-b)) {\n            const group=this.slices[index];\n            if(!this.manabiRendered.has(index)) {\n                const materials=this.renderLayers(this.manabiSources[index],group);\n                for(const [label,proxy] of Object.entries(this.manabiProxies[index])) {\n                    proxy.linked=materials[label]||[];\n                    for(const mat of proxy.linked)mat.visible=proxy.visible;\n                }\n                this.manabiRendered.add(index);\n            }\n            group.visible=true;\n            this.lastVis=group;\n        }\n    }");
 patchStack("    addLayers(layers) {\n        // each slice gets a group so the slice can be toggled efficiently\n        let group = this.view.newGroup();\n        this.slices.push(group);\n        let map = this.renderLayers(layers, group);","    addLayers(layers) {\n        // each slice gets a group so the slice can be toggled efficiently\n        let group = this.view.newGroup();\n        this.slices.push(group);\n        if(this.manabiLazy) {\n            group.visible=false;\n            this.manabiSources.push(layers);\n            const map={};\n            const proxies={};\n            for(const [label,layer] of Object.entries(layers.layers)) {\n                const proxy={\n                    linked:[],\n                    _visible:!layer.off,\n                    get visible(){return this._visible;},\n                    set visible(v){\n                        this._visible=!!v;\n                        for(const mat of this.linked)mat.visible=!!v;\n                    }\n                };\n                proxies[label]=proxy;\n                map[label]=[proxy];\n                map[label].state=!layer.off;\n            }\n            this.manabiProxies.push(proxies);\n            return map;\n        }\n        let map = this.renderLayers(layers, group);");
+// Map any selected slice position to the nearest pre-rendered sample.
+// Large models can still use the ordinary layer slider; sampled positions
+// are an explicit visual approximation, never a change to print geometry.
+const beforeSampleMapping=`        this.lastVis=null;
+        for(const index of [...wanted].sort((a,b)=>a-b)) {`;
+const afterSampleMapping=`        if(!this.manabiAvailable) {
+            this.manabiAvailable=this.manabiSources.map((source,i)=>
+                source?.layers && Object.keys(source.layers).length ? i : -1
+            ).filter(i=>i>=0);
+        }
+        if(this.manabiAvailable.length && this.manabiAvailable.length<count) {
+            const normalized=new Set();
+            for(const position of wanted) {
+                let nearest=this.manabiAvailable[0];
+                for(const sample of this.manabiAvailable) {
+                    if(Math.abs(sample-position)<Math.abs(nearest-position))nearest=sample;
+                }
+                normalized.add(nearest);
+            }
+            wanted.clear();
+            for(const sample of normalized)wanted.add(sample);
+        }
+        this.lastVis=null;
+        for(const index of [...wanted].sort((a,b)=>a-b)) {`;
+if(stack.split(beforeSampleMapping).length!==2)throw Error('Upstream lazy Stack view selection changed');
+stack=stack.replace(beforeSampleMapping,afterSampleMapping);
 fs.writeFileSync(stackName,stack);
 console.log('Patched Kiri STL bridge, WebKit workers, and nonfatal OPFS startup.');

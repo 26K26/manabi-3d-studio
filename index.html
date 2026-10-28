@@ -1621,6 +1621,9 @@ for(const button of paletteButtons){
   if(e.type==='pointercancel'){
    discardGhost();placing=null;controls.enabled=true;armedShape=button.dataset.shape;refreshPlacementUI();
   }else finishPlace(e.clientX,e.clientY);
+  // Tapping a palette tile on a phone arms the placement tool.
+  // Reveal the workplane immediately so the next tap can place the shape.
+  if(isMobileCad())closeMobileSheet();
  };
  button.addEventListener('pointerup',end);
  button.addEventListener('pointercancel',end);
@@ -1849,7 +1852,77 @@ async function enterFullPageKiri(){
 }
 // Legacy setTab kept for CAD layout state; Kiri now launches as a route.
 function setTab(to){if(to!=='cad'&&(armedShape||placing))cancelPlacement();for(const [id,active] of [['cadPage',to==='cad'],['slicePage',to==='slice']])$(id).classList.toggle('active',active);$('tabCad').classList.toggle('active',to==='cad');$('tabSlice').classList.toggle('active',to==='slice');$('tabCad').setAttribute('aria-current',to==='cad'?'page':'false');$('tabSlice').setAttribute('aria-current',to==='slice'?'page':'false');if(to==='cad')requestAnimationFrame(resize);updateResizeHandles();}
-$('tabCad').onclick=()=>setTab('cad');$('tabSlice').onclick=enterFullPageKiri;$('backCad').onclick=()=>setTab('cad');$('propsToggle').onclick=()=>$('props').classList.toggle('is-hidden');
+$('tabCad').onclick=()=>setTab('cad');$('tabSlice').onclick=enterFullPageKiri;$('backCad').onclick=()=>setTab('cad');
+
+// Mobile CAD: the drawing surface has priority. Open the shape palette,
+// editing controls or existing actions as a temporary bottom sheet.
+const mobileCadMedia=window.matchMedia('(max-width:690px)');
+const mobileSheetButtons={
+ shapes:$('mobileShapeToggle'),
+ edit:$('propsToggle'),
+ actions:$('mobileMoreToggle')
+};
+function isMobileCad(){return mobileCadMedia.matches;}
+function closeMobileSheet(){
+ $('cadBody').classList.remove('mobile-panel-open');
+ for(const button of Object.values(mobileSheetButtons))button.setAttribute('aria-expanded','false');
+ if(isMobileCad())$('props').setAttribute('aria-hidden','true');
+ else $('props').removeAttribute('aria-hidden');
+}
+function openMobileSheet(tab='shapes'){
+ if(!isMobileCad())return;
+ const open=$('cadBody').classList.contains('mobile-panel-open');
+ if(open && $('props').dataset.mobileTab===tab){closeMobileSheet();return;}
+ $('props').dataset.mobileTab=tab;
+ $('props').scrollTop=0;
+ $('cadBody').classList.add('mobile-panel-open');
+ $('props').removeAttribute('aria-hidden');
+ for(const [name,button] of Object.entries(mobileSheetButtons)){
+  button.setAttribute('aria-expanded',String(name===tab));
+ }
+ for(const button of document.querySelectorAll('[data-mobile-tab-button]')){
+  button.setAttribute('aria-pressed',String(button.dataset.mobileTabButton===tab));
+ }
+ syncMobileActions();
+}
+function syncMobileActions(){
+ for(const button of document.querySelectorAll('[data-cad-action]')){
+  const original=$(button.dataset.cadAction);
+  button.disabled=!original||original.disabled;
+  if(original)button.title=original.title||'';
+ }
+}
+for(const [name,button] of Object.entries(mobileSheetButtons)){
+ button.addEventListener('click',()=>openMobileSheet(name));
+}
+for(const button of document.querySelectorAll('[data-mobile-tab-button]')){
+ button.addEventListener('click',()=>openMobileSheet(button.dataset.mobileTabButton));
+}
+$('mobileDrawerBackdrop').addEventListener('click',closeMobileSheet);
+$('mobileSheetClose').addEventListener('click',closeMobileSheet);
+for(const button of document.querySelectorAll('[data-cad-action]')){
+ button.addEventListener('click',()=>{
+  const original=$(button.dataset.cadAction);
+  if(!original||original.disabled)return;
+  original.click();
+  closeMobileSheet();
+ });
+}
+const mobileActionObserver=new MutationObserver(syncMobileActions);
+for(const button of document.querySelectorAll('[data-cad-action]')){
+ const original=$(button.dataset.cadAction);
+ if(original)mobileActionObserver.observe(original,{attributes:true,attributeFilter:['disabled','title']});
+}
+mobileCadMedia.addEventListener('change',()=>{
+ closeMobileSheet();
+ if(!isMobileCad())$('props').classList.remove('is-hidden');
+ requestAnimationFrame(resize);
+});
+window.addEventListener('keydown',event=>{
+ if(event.key==='Escape'&&$('cadBody').classList.contains('mobile-panel-open'))closeMobileSheet();
+});
+closeMobileSheet();
+syncMobileActions();
 // Printer profiles: only geometry envelope and UI defaults. Never assume firmware/G-code compatibility.
 function profile(){return PROFILES[$('printer').value]||PROFILES.generic;}
 function onProfile(){const p=profile();$('bedX').value=p.bed.x;$('bedY').value=p.bed.y;$('bedZ').value=p.bed.z;$('printerNozzle').value=String(p.nozzle);$('printerInfo').textContent=`${p.label} / ${p.bed.x} × ${p.bed.y} × ${p.bed.z} mm / 出力アダプター未検証`;notify('プロファイルを選択しました。実機互換性はまだ未検証です。');}

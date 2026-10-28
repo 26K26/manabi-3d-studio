@@ -252,8 +252,7 @@ try{
  await page.waitForFunction(()=>window.__manabiColorSnapshot().length===2,null,{timeout:10000});
  await page.locator('#mobileMoreToggle').click();
  await page.locator('#mobileDrawerBackdrop').click({position:{x:100,y:20}});
- if(await page.locator('#props').evaluate(el=>getComputedStyle(el).visibility)!=='hidden')
-   throw Error('Tapping the workplane backdrop did not close the mobile sheet');
+ await page.waitForFunction(()=>getComputedStyle(document.getElementById('props')).visibility==='hidden',null,{timeout:3000});
  console.log('PASS: portrait iPhone full-height workspace, shape drawer, touch-place, edit/action tabs, undo and backdrop close');
 
 

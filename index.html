@@ -237,7 +237,7 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
  #shapePanel #newShapeColor{min-height:39px}
  #shapePanel #placeInfo{display:none}
  #shapePanel .shapeGrid{gap:7px}
- #shapePanel .shapeGrid button{min-height:67px;padding:5px 2px;gap:3px}
+ #shapePanel .shapeGrid button{min-height:67px;padding:5px 2px;gap:3px;touch-action:pan-y}
  #shapePanel .shapeGrid svg{width:30px;height:30px}
  #shapePanel .shapeLibrary{margin-top:9px}
  #shapePanel .extraShapeGrid button{min-height:65px}
@@ -1624,10 +1624,14 @@ for(const button of paletteButtons){
   e.preventDefault();
   try{button.releasePointerCapture(e.pointerId);}catch{}
   if(e.type==='pointercancel'){
-   discardGhost();placing=null;controls.enabled=true;armedShape=button.dataset.shape;refreshPlacementUI();
-  }else finishPlace(e.clientX,e.clientY);
-  // Tapping a palette tile on a phone arms the placement tool.
-  // Reveal the workplane immediately so the next tap can place the shape.
+   // A vertical swipe on iPhone is for scrolling the library, not for
+   // closing the sheet or silently arming a model placement.
+   cancelPlacement();
+   return;
+  }
+  finishPlace(e.clientX,e.clientY);
+  // Tapping a palette tile on a phone arms placement and then reveals
+  // the unobstructed workplane; dragging into it still places directly.
   if(isMobileCad())closeMobileSheet();
  };
  button.addEventListener('pointerup',end);

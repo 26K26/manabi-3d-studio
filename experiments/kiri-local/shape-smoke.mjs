@@ -218,7 +218,7 @@ try{
  await page.locator('#printerSetup').click();
  if(!await page.locator('#schoolPrinterDialog').isVisible())throw Error('School printer dialog did not open');
  if((await page.locator('#schoolPrinter').inputValue())!=='a1mini')throw Error('A1 mini is not the default');
- if(!await page.locator('#schoolBedX').isReadOnly())throw Error('A1 mini dimensions must stay fixed');
+ if(!await page.locator('#schoolBedX').evaluate(el=>el.readOnly))throw Error('A1 mini dimensions must stay fixed');
  await page.locator('#schoolPrinter').selectOption('custom');
  await page.locator('#schoolBedX').fill('245');
  await page.locator('#schoolBedY').fill('205');

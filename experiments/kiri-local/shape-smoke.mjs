@@ -3,17 +3,28 @@
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { DEFAULT_PRINTER, schoolSettings, assessBuildEnvelope } from './print-config.mjs';
 const port=18789,root='/manabi-3d-studio/';
 const cad=readFileSync('index.html');
 const bridge=readFileSync('experiments/kiri-local/bridge.js');
+const printConfig=readFileSync('experiments/kiri-local/print-config.mjs');
 const server=createServer((req,res)=>{
  const p=new URL(req.url,'http://127.0.0.1:'+port).pathname;
  if(p===root||p===root+'preview/kiri-local/'||p===root+'preview/kiri-local/index.html'){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});res.end(cad);}
  else if(p===root+'kiri-local/bridge.js'){res.writeHead(200,{'Content-Type':'application/javascript'});res.end(bridge);}
+ else if(p===root+'kiri-local/print-config.mjs'){res.writeHead(200,{'Content-Type':'application/javascript'});res.end(printConfig);}
  else {res.writeHead(404);res.end('missing '+p);}
 });
 let browser;const log=[];
 try{
+ const a1=schoolSettings(DEFAULT_PRINTER);
+ if(a1.bed.x!==180||a1.bed.y!==180||a1.bed.z!==180)throw Error('A1 mini must use its real 180mm volume');
+ if(assessBuildEnvelope({x:180,y:180,z:180},a1).ok!==true)throw Error('Valid A1 mini dimensions rejected');
+ if(assessBuildEnvelope({x:180.2,y:120,z:40},a1).ok!==false)throw Error('Oversized A1 mini model was accepted');
+ const custom=schoolSettings('custom',{bed:{x:245,y:205,z:270},height:0.28});
+ if(!assessBuildEnvelope({x:200,y:200,z:260},custom).ok)throw Error('Custom school printer profile was rejected');
+ if(schoolSettings('a1mini',{bed:{x:500,y:500,z:500}}).bed.x!==180)throw Error('Fixed A1 mini bed was overridden');
+ console.log('PASS: cost-free fixed A1 mini 180mm and editable alternate school printer volumes');
  await new Promise(resolve=>server.listen(port,'127.0.0.1',resolve));
  const executablePath=process.env.CHROME_BIN||'/usr/bin/google-chrome';
  browser=await chromium.launch({executablePath,headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--enable-unsafe-swiftshader','--use-angle=swiftshader']});
@@ -202,6 +213,27 @@ try{
  await page.locator('#shapeList button').nth(1).click({modifiers:['Control']});
  if((await page.locator('#selectedColorValue').textContent()).trim()!=='色が混在')throw Error('Mixed colors not indicated');
  console.log('PASS: selected-shape recolor, multi-selection, undo, autosave, hole-color restore and mixed colors');
+
+ // School printer choices use local state and never involve a remote service.
+ await page.locator('#printerSetup').click();
+ if(!await page.locator('#schoolPrinterDialog').isVisible())throw Error('School printer dialog did not open');
+ if((await page.locator('#schoolPrinter').inputValue())!=='a1mini')throw Error('A1 mini is not the default');
+ if(!await page.locator('#schoolBedX').isReadOnly())throw Error('A1 mini dimensions must stay fixed');
+ await page.locator('#schoolPrinter').selectOption('custom');
+ await page.locator('#schoolBedX').fill('245');
+ await page.locator('#schoolBedY').fill('205');
+ await page.locator('#schoolBedZ').fill('270');
+ await page.locator('#schoolLayerHeight').fill('0.28');
+ await page.locator('#schoolPrinterApply').click();
+ if((await page.locator('#bedX').inputValue())!=='245')throw Error('Local school printer setting was not applied');
+ await page.reload({waitUntil:'domcontentloaded'});
+ await page.waitForFunction(()=>window.__manabiCadReady===true,null,{timeout:60000});
+ if((await page.locator('#bedZ').inputValue())!=='270')throw Error('School printer setting was not restored');
+ await page.locator('#printerSetup').click();
+ await page.locator('#schoolPrinter').selectOption('a1mini');
+ await page.locator('#schoolPrinterApply').click();
+ if((await page.locator('#bedX').inputValue())!=='180')throw Error('A1 mini did not restore 180mm');
+ console.log('PASS: local school printer preset, editable alternate volume, browser reload and A1 mini restore');
 
  // Portrait iPhone: the CAD workplane should be visible without a drawer
  // covering it; shape selection should dismiss the sheet and arm placement.

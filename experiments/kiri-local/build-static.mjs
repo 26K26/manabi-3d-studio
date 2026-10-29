@@ -38,7 +38,7 @@ for(const [from,to,req] of [
  ['license.md','license.md',true]
 ]) copy(from,to,req);
 // Same-tab bridge scripts live on the same Pages origin as the CAD and Kiri.
-for(const name of ['bridge.js','auto-import.js']){
+for(const name of ['bridge.js','auto-import.js','print-config.mjs']){
  const source=path.resolve('experiments/kiri-local',name);
  const dest=path.join(out,'kiri-local',name);
  fs.copyFileSync(source,dest);

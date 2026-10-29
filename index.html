@@ -1865,6 +1865,20 @@ async function enterFullPageKiri(){
  enteringFullPageKiri=true;
  try{
   if(!window.ManabiKiriBridge)throw Error('内蔵Kiriの受け渡しプログラムを読み込めません');
+  // This check is independent of Kiri. Protect modest school PCs against
+  // unsupported envelopes before running expensive slicing calculations.
+  const activePrinter=schoolSettings($('printer').value,{
+   bed:{x:Number($('bedX').value),y:Number($('bedY').value),z:Number($('bedZ').value)},
+   height:Number($('layerHeight').value)
+  });
+  const solids=items.filter(item=>!item.hole);
+  if(!solids.length)throw Error('スライスする実体の図形がありません');
+  const bounds=new THREE.Box3();
+  for(const solid of solids)bounds.expandByObject(solid.mesh);
+  const ext=bounds.getSize(new THREE.Vector3());
+  const readiness=assessBuildEnvelope(ext,activePrinter);
+  if(!readiness.ok)throw Error(`モデル外形 ${formatEnvelope(readiness.size)} が ${activePrinter.label} の造形範囲（${formatEnvelope(activePrinter.bed)}）を超えています。図形を小さくするかプリンター設定を確認してください。`);
+  if(readiness.warning && !window.confirm(`スライス層数の見積もりは約${readiness.estimatedLayers}層です。学校の端末ではメモリ不足になる可能性があります。続けますか？`))return;
   // Persist a full editable CAD document before unloading the WebGL scene.
   // Do not navigate if this fails: the user's design must not be lost.
   const draft=JSON.stringify(documentData());
@@ -1873,10 +1887,11 @@ async function enterFullPageKiri(){
   notify('モデルをKiriへ直接渡す準備中…');
   const buffer=await toStlBuffer();
   await window.ManabiKiriBridge.stage(buffer,{
-   bedX:Number($('bedX').value)||180,
-   bedY:Number($('bedY').value)||180,
-   bedZ:Number($('bedZ').value)||180,
-   height:Number($('layerHeight').value)||.2
+   printerId:activePrinter.id,
+   bedX:activePrinter.bed.x,
+   bedY:activePrinter.bed.y,
+   bedZ:activePrinter.bed.z,
+   height:activePrinter.height
   });
   // First-party full-page Kiri. Its main workers don't compete with CAD's
   // Three.js WebGL scene and are no longer inside an iframe.
@@ -1962,7 +1977,68 @@ closeMobileSheet();
 syncMobileActions();
 // Printer profiles: only geometry envelope and UI defaults. Never assume firmware/G-code compatibility.
 function profile(){return PRINTERS[$('printer').value]||PRINTERS[DEFAULT_PRINTER];}
-function onProfile(){const p=profile();$('bedX').value=p.bed.x;$('bedY').value=p.bed.y;$('bedZ').value=p.bed.z;$('printerNozzle').value=String(p.nozzle);$('printerInfo').textContent=`${p.label} / ${p.bed.x} × ${p.bed.y} × ${p.bed.z} mm / 出力アダプター未検証`;notify('プロファイルを選択しました。実機互換性はまだ未検証です。');}
+function updatePrinterBadge(){
+ const p=profile();
+ const size=p.id==='custom'?`${$('bedX').value}×${$('bedY').value}×${$('bedZ').value}mm`:`${p.bed.x}mm`;
+ $('printerSetup').textContent=`🖨 ${p.id==='a1mini'?'A1 mini':p.id==='custom'?'学校用':'汎用FDM'} · ${size}`;
+}
+function onProfile(){
+ const p=profile();$('bedX').value=p.bed.x;$('bedY').value=p.bed.y;$('bedZ').value=p.bed.z;
+ $('printerNozzle').value=String(p.nozzle);
+ $('printerInfo').textContent=`${p.label} / ${p.bed.x} × ${p.bed.y} × ${p.bed.z} mm / 出力アダプター未検証`;
+ updatePrinterBadge();
+ notify('プリンター設定を選択しました。機種別の印刷データは未検証です。');
+}
+const printerDialog=$('schoolPrinterDialog');
+function fillSchoolDialog(id=DEFAULT_PRINTER,keepCurrent=false){
+ const preset=PRINTERS[id]||PRINTERS[DEFAULT_PRINTER];
+ $('schoolPrinter').value=preset.id;
+ const bed=keepCurrent?{x:Number($('bedX').value),y:Number($('bedY').value),z:Number($('bedZ').value)}:preset.bed;
+ for(const axis of ['x','y','z']){
+  const input=$('schoolBed'+axis.toUpperCase());
+  input.value=bed[axis];
+  input.readOnly=!preset.editable;
+ }
+ $('schoolLayerHeight').value=keepCurrent?$('layerHeight').value:'0.2';
+}
+$('printerSetup').addEventListener('click',()=>{
+ fillSchoolDialog($('printer').value,true);
+ if(!printerDialog.open)printerDialog.showModal();
+});
+$('schoolPrinter').addEventListener('change',()=>fillSchoolDialog($('schoolPrinter').value,false));
+$('schoolPrinterCancel').addEventListener('click',()=>printerDialog.close());
+$('schoolPrinterApply').addEventListener('click',()=>{
+ try{
+  const selected=$('schoolPrinter').value;
+  const config=schoolSettings(selected,{
+   bed:{x:$('schoolBedX').value,y:$('schoolBedY').value,z:$('schoolBedZ').value},
+   height:$('schoolLayerHeight').value
+  });
+  $('printer').value=config.id;
+  for(const axis of ['x','y','z'])$('bed'+axis.toUpperCase()).value=config.bed[axis];
+  $('layerHeight').value=config.height;
+  $('printerNozzle').value=String(PRINTERS[config.id].nozzle);
+  $('printerInfo').textContent=`${config.label} / ${formatEnvelope(config.bed)} / 印刷コード未検証`;
+  updatePrinterBadge();
+  try{localStorage.setItem('manabi3d-school-printer-v1',JSON.stringify(config));}catch(e){console.warn('Local printer setting not persisted',e);}
+  printerDialog.close();
+  notify(`プリンター設定：${config.label}（${formatEnvelope(config.bed)}）。造形範囲はスライス前に確認します。`);
+ }catch(e){notify(e.message||String(e));}
+});
+function restoreSchoolPrinter(){
+ try{
+  const raw=localStorage.getItem('manabi3d-school-printer-v1');
+  if(!raw)return;
+  const saved=JSON.parse(raw);
+  const config=schoolSettings(saved.id,{bed:saved.bed,height:saved.height});
+  $('printer').value=config.id;
+  for(const axis of ['x','y','z'])$('bed'+axis.toUpperCase()).value=config.bed[axis];
+  $('layerHeight').value=config.height;
+  $('printerNozzle').value=String(PRINTERS[config.id].nozzle);
+  $('printerInfo').textContent=`${config.label} / ${formatEnvelope(config.bed)} / 印刷コード未検証`;
+  updatePrinterBadge();
+ }catch(e){console.warn('Saved printer preset rejected',e);}
+}
 
 // Browser-native 3D preview of the exact STL destined for the slicer. Not a Kiri confirmation.
 let previewRenderer=null,previewScene=null,previewCamera=null,previewControl=null,previewMesh=null;
@@ -2000,7 +2076,7 @@ async function refreshSlicePreview(stl){
 $('toggleKiri').onclick=()=>{const small=$('slicePreviewPanel').classList.toggle('collapsed');$('toggleKiri').textContent=small?'CADプレビューを表示':'Kiriを広く表示';};
 $('exportForKiri').onclick=async()=>{try{const stl=await toStlBuffer();download(stl,'manabi3d-for-kiri.stl','model/stl');notify('STLを端末に保存しました。Kiri画面からこのファイルをImportしてね。');}catch(e){notify('STL保存失敗：'+e.message);}};
 
-$('printer').onchange=onProfile;onProfile();const kiri=$('kiri');const apiOrigin=window.location.origin;let kiriLoaded=false;let kiriLoadedAt=0;let pendingTransfer=false;let transferring=false;let transferSequence=0;
+$('printer').onchange=onProfile;onProfile();restoreSchoolPrinter();const kiri=$('kiri');const apiOrigin=window.location.origin;let kiriLoaded=false;let kiriLoadedAt=0;let pendingTransfer=false;let transferring=false;let transferSequence=0;
 function sendKiri(data){try{kiri.contentWindow.postMessage(data,apiOrigin);return true;}catch(e){notify('Kiri:Motoへの連携に失敗しました：'+e.message);return false;}}
 function subscribeKiri(){['parsed','loaded','slice.end','slice.error','preview.end','preview.error'].forEach(event=>sendKiri({event}));}
 kiri.addEventListener('load',()=>{kiriLoaded=true;kiriLoadedAt=Date.now();$('kiriStatus').textContent='Kiri画面表示済み（起動準備中）';$('kiriStatus').dataset.state='';subscribeKiri();if(pendingTransfer){pendingTransfer=false;transfer();}});

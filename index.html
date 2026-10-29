@@ -253,6 +253,21 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
  #mobileShapeToggle,#mobileMoreToggle,#propsToggle{font-size:11px}
 }
 @media (prefers-reduced-motion:reduce){#cadBody #props{transition:none}}
+
+/* Teacher-friendly, completely local printer settings. The active CAD is retained. */
+#schoolPrinterDialog{background:white;color:#273b51;border:1px solid #9cbcd8;border-radius:17px;padding:18px;width:min(430px,calc(100vw - 22px));max-height:85dvh;overflow:auto;box-shadow:0 14px 50px #142f4655}
+#schoolPrinterDialog::backdrop{background:#16304788}
+#schoolPrinterDialog h2{font-size:17px;margin:0 0 8px}
+#schoolPrinterDialog p{font-size:12px;line-height:1.55;color:#556d82}
+#schoolPrinterDialog label{display:block;font-size:12px;font-weight:650;margin:12px 0 5px}
+#schoolPrinterDialog select,#schoolPrinterDialog input{width:100%;min-width:0;font-size:15px;border:1px solid #b0c7dc;background:#fff;color:#24374a;border-radius:8px;padding:9px}
+#schoolPrinterDialog input[readonly]{background:#f2f6fb;color:#6c7d8b}
+#schoolPrinterDialog .schoolBedFields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+#schoolPrinterDialog .schoolBedFields label{min-width:0}
+#schoolPrinterDialog .schoolDialogButtons{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+#schoolPrinterDialog .schoolDialogButtons button{min-height:43px}
+#schoolPrinterDialog .schoolSafetyNote{background:#f3f8ff;padding:10px;border-radius:9px;border:1px solid #d3e6f6}
+@media (max-width:690px){#schoolPrinterDialog{padding:14px}#schoolPrinterDialog input{font-size:16px}}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","three-bvh-csg":"https://esm.sh/three-bvh-csg@0.0.18?external=three"}}
@@ -278,7 +293,7 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
   <span class="sep"></span><button id="dropToFloor" type="button" disabled title="選択した図形の実際の底面をZ=0の作業面にぴったり接地（D）">⬇ 作業面に接地</button><button id="alignTop" type="button" disabled title="2個以上の選択図形の左・中央・右、前・中央・奥、下・中央・上をそろえる">⊞ 整列</button><button id="combineTop" type="button" class="primary" disabled title="選択した実体と穴を処理">🔗 結合・穴あけ</button><button id="soloToggle" type="button" disabled aria-pressed="false" title="選択した図形だけをCAD画面に一時表示。保存・スライスには影響しません">👁 単独表示</button><button id="clearSelection" type="button" title="選択した図形を解除">選択解除</button><button id="copyObjects" type="button" title="選択した図形をコピー（Ctrl/⌘+C）" disabled>⧉ コピー</button><button id="pasteObjects" type="button" title="コピーした図形を貼り付け（Ctrl/⌘+V）" disabled>▣ 貼り付け</button><button id="deleteObjects" type="button" class="danger" title="選択した図形を削除（Delete / Backspace）" disabled>🗑 選択図形を削除</button><button id="undoObjects" type="button" title="直前の操作を元に戻す（Ctrl/⌘+Z）" disabled>↶ 元に戻す</button><span class="sep"></span><button id="openStl" title="STLをCADに読み込み">STL読込</button><input id="stlFile" type="file" accept=".stl,model/stl,application/sla">
   <button id="saveStl">STL保存</button><button id="saveProject" class="cadOther" title="再編集可能な独自形式で保存">編集データ保存</button>
   <button id="loadProject" class="cadOther">編集データ読込</button><input id="projectFile" type="file" accept=".json,.m3d.json,application/json">
-  <span class="grow"></span><button id="propsToggle" type="button" aria-controls="props" aria-expanded="false">✎ 編集</button><button id="toSlice" class="primary">スライスへ →</button>
+  <span class="grow"></span><button id="propsToggle" type="button" aria-controls="props" aria-expanded="false">✎ 編集</button><button id="printerSetup" type="button" title="学校のプリンターと造形サイズを設定">🖨 A1 mini · 180mm</button><button id="toSlice" class="primary">スライスへ →</button>
  </div>
  <div id="cadContextMenu" role="menu" aria-label="CAD図形の操作" hidden><button id="contextCopy" type="button" role="menuitem">⧉ 選択図形をコピー</button><button id="contextPaste" type="button" role="menuitem">▣ 貼り付け</button><button id="contextDuplicate" type="button" role="menuitem">⧉ すぐ複製</button><button id="contextDrop" type="button" role="menuitem">⬇ 作業面に接地</button><button id="contextAlign" type="button" role="menuitem">⊞ 選択図形を整列</button><button id="contextDelete" type="button" role="menuitem" class="danger">🗑 選択図形を削除</button></div>
  <div id="cadBody">
@@ -392,6 +407,7 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
      <button type="button" data-cad-action="undoObjects">↶ 元に戻す</button>
      <button type="button" data-cad-action="openStl">STL読込</button>
      <button type="button" data-cad-action="saveStl">STL保存</button>
+     <button type="button" data-cad-action="printerSetup">🖨 プリンター設定</button>
      <button type="button" data-cad-action="saveProject">編集データ保存</button>
      <button type="button" data-cad-action="loadProject">編集データ読込</button>
     </div>
@@ -434,6 +450,21 @@ a{color:#1e68b5}.tag{color:#40566d;border-color:#d5dfe9}#canvasWrap{background:#
 </section>
 </div>
 <footer><span id="message" role="status">起動準備中…</span><div class="links"><a href="https://classroom.google.com/" target="_blank" rel="noopener noreferrer">Classroom ↗</a><a href="https://loilonote.app/" target="_blank" rel="noopener noreferrer">ロイロノート ↗</a></div></footer>
+
+<dialog id="schoolPrinterDialog" aria-labelledby="schoolPrinterTitle">
+ <h2 id="schoolPrinterTitle">🖨 学校のプリンター設定</h2>
+ <p>初期設定はA1 mini（造形範囲 180 × 180 × 180mm）。別の学校のプリンターは「学校のプリンター」で寸法を指定できます。</p>
+ <label for="schoolPrinter">プリンターの種類</label>
+ <select id="schoolPrinter"><option value="a1mini">Bambu Lab A1 mini</option><option value="generic">汎用FDM（220 × 220 × 250の例）</option><option value="custom">学校のプリンター（自由設定）</option></select>
+ <div class="schoolBedFields">
+ <label>幅 X (mm)<input id="schoolBedX" type="number" min="1" max="1000" step="1" value="180"></label>
+ <label>奥行 Y (mm)<input id="schoolBedY" type="number" min="1" max="1000" step="1" value="180"></label>
+ <label>高さ Z (mm)<input id="schoolBedZ" type="number" min="1" max="1000" step="1" value="180"></label>
+ </div>
+ <label for="schoolLayerHeight">積層高さ（mm）</label><input id="schoolLayerHeight" type="number" min="0.04" max="1" step="0.04" value="0.2">
+ <p class="schoolSafetyNote">すべて端末内で処理。外部のスライスサイト・課金・アカウント登録は不要です。ただし機種別の印刷コードの互換性はまだ未検証です。</p>
+ <div class="schoolDialogButtons"><button type="button" id="schoolPrinterCancel">キャンセル</button><button type="button" id="schoolPrinterApply" class="primary">この設定を使う</button></div>
+</dialog>
 <dialog id="shapeColorDialog" aria-labelledby="shapeColorTitle">
  <div class="shapeColorHeader"><h3 id="shapeColorTitle">図形の色</h3><button id="shapeColorClose" type="button" aria-label="色の選択を閉じる">×</button></div>
  <p id="shapeColorHelp">プリセットを選ぶか、好きな色を指定してね。</p>
@@ -461,13 +492,10 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { STLExporter } from 'three/addons/exporters/STLExporter.js';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+import { DEFAULT_PRINTER, PRINTERS, schoolSettings, assessBuildEnvelope, formatEnvelope } from '/manabi-3d-studio/kiri-local/print-config.mjs';
 
-// Export profiles are deliberately data-only. Printer-specific machine G-code is NEVER autogenerated here.
-const PROFILES = Object.freeze({
- a1mini:{id:'a1mini',label:'Bambu Lab A1 mini（参考）',brand:'Bambu Lab',bed:{x:180,y:180,z:180},nozzle:0.4,verified:false,exportTarget:'gcode.3mf'},
- generic:{id:'generic',label:'汎用FDM（例）',brand:'Generic',bed:{x:220,y:220,z:250},nozzle:0.4,verified:false,exportTarget:'gcode'},
- custom:{id:'custom',label:'カスタム（仮）',brand:'Unspecified',bed:{x:200,y:200,z:200},nozzle:0.4,verified:false,exportTarget:'unknown'}
-});
+// Print profiles and preflight live in a standalone, dependency-free module.
+// CAD must remain usable even if the slicer implementation changes later.
 const $ = id=>document.getElementById(id);
 const notify = text=>{$('message').textContent=text;};
 const clampNumber=(v,min,max,fallback)=>Number.isFinite(Number(v))?Math.min(max,Math.max(min,Number(v))):fallback;
@@ -1933,7 +1961,7 @@ window.addEventListener('keydown',event=>{
 closeMobileSheet();
 syncMobileActions();
 // Printer profiles: only geometry envelope and UI defaults. Never assume firmware/G-code compatibility.
-function profile(){return PROFILES[$('printer').value]||PROFILES.generic;}
+function profile(){return PRINTERS[$('printer').value]||PRINTERS[DEFAULT_PRINTER];}
 function onProfile(){const p=profile();$('bedX').value=p.bed.x;$('bedY').value=p.bed.y;$('bedZ').value=p.bed.z;$('printerNozzle').value=String(p.nozzle);$('printerInfo').textContent=`${p.label} / ${p.bed.x} × ${p.bed.y} × ${p.bed.z} mm / 出力アダプター未検証`;notify('プロファイルを選択しました。実機互換性はまだ未検証です。');}
 
 // Browser-native 3D preview of the exact STL destined for the slicer. Not a Kiri confirmation.

@@ -1878,7 +1878,7 @@ async function enterFullPageKiri(){
   const ext=bounds.getSize(new THREE.Vector3());
   const readiness=assessBuildEnvelope(ext,activePrinter);
   if(!readiness.ok)throw Error(`モデル外形 ${formatEnvelope(readiness.size)} が ${activePrinter.label} の造形範囲（${formatEnvelope(activePrinter.bed)}）を超えています。図形を小さくするかプリンター設定を確認してください。`);
-  if(readiness.warning && !window.confirm(`スライス層数の見積もりは約${readiness.estimatedLayers}層です。学校の端末ではメモリ不足になる可能性があります。続けますか？`))return;
+  if(readiness.warning && !window.confirm(`スライス層数の見積もりは約${readiness.estimatedLayers}層です。学校の端末ではメモリ不足になる可能性があります。続けますか？`)){enteringFullPageKiri=false;return;}
   // Persist a full editable CAD document before unloading the WebGL scene.
   // Do not navigate if this fails: the user's design must not be lost.
   const draft=JSON.stringify(documentData());

@@ -4,11 +4,15 @@ on:
   push:
     branches:
       - experiment/kiri-local
+    # Do not rebuild the heavyweight Kiri engine for CAD-only edits.
+    # CAD has its own self-hosted bundle + offline browser CI workflow.
     paths:
       - '.github/workflows/kiri-local-build.yml'
-      - 'experiments/kiri-local/**'
-      - 'index.html'
-      - 'package.json'
+      - 'experiments/kiri-local/patch-upstream.mjs'
+      - 'experiments/kiri-local/build-static.mjs'
+      - 'experiments/kiri-local/auto-import.js'
+      - 'experiments/kiri-local/bridge.js'
+      - 'experiments/kiri-local/smoke-fullpage.mjs'
   workflow_dispatch:
 
 # Only the newest experimental build may publish to the shared Pages branch.

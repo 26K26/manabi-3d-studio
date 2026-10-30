@@ -1,0 +1,77 @@
+name: School CAD self-hosted preview
+on:
+  push:
+    branches:
+      - experiment/kiri-local
+    paths:
+      - index.html
+      - package.json
+      - experiments/kiri-local/build-cad.mjs
+      - experiments/kiri-local/shape-smoke.mjs
+      - experiments/kiri-local/print-config.mjs
+      - .github/workflows/cad-self-hosted-preview.yml
+  workflow_dispatch:
+
+# CAD and the full Kiri build may not race to publish the shared preview.
+concurrency:
+  group: manabi-kiri-local-preview-publish
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  cad:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Check out the CAD experiment
+        uses: actions/checkout@v4
+
+      - name: Node.js for build only
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pinned build-time libraries and browser harness
+        run: npm install --no-save --no-audit --no-fund playwright-core
+
+      - name: Produce self-hosted CAD without runtime CDN imports
+        run: node experiments/kiri-local/build-cad.mjs test-site
+
+      - name: Test CAD with external HTTPS completely blocked
+        run: |
+          CHROME_BIN="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          CHROME_BIN="$CHROME_BIN" node experiments/kiri-local/shape-smoke.mjs
+
+      - name: Check out main exclusively for isolated preview publishing
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: publish
+          persist-credentials: true
+
+      - name: Publish CAD-only files without changing stable app or slicer
+        working-directory: publish
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            mkdir -p preview/kiri-local kiri-local
+            cp ../test-site/index.html preview/kiri-local/index.html
+            cp ../test-site/kiri-local/cad.bundle.js kiri-local/cad.bundle.js
+            cp ../experiments/kiri-local/print-config.mjs kiri-local/print-config.mjs
+            git add preview/kiri-local/index.html kiri-local/cad.bundle.js kiri-local/print-config.mjs
+            if git diff --cached --quiet; then
+              echo 'Self-hosted CAD preview already up to date'
+              exit 0
+            fi
+            git commit -m 'Publish local-library CAD preview (preserve stable app and Kiri)'
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "Main advanced during CAD publish attempt $attempt"
+          done
+          exit 1

@@ -5,13 +5,15 @@ import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { DEFAULT_PRINTER, schoolSettings, assessBuildEnvelope } from './print-config.mjs';
 const port=18789,root='/manabi-3d-studio/';
-const cad=readFileSync('index.html');
+const cad=readFileSync('test-site/index.html');
+const cadBundle=readFileSync('test-site/kiri-local/cad.bundle.js');
 const bridge=readFileSync('experiments/kiri-local/bridge.js');
 const printConfig=readFileSync('experiments/kiri-local/print-config.mjs');
 const server=createServer((req,res)=>{
  const p=new URL(req.url,'http://127.0.0.1:'+port).pathname;
  if(p===root||p===root+'preview/kiri-local/'||p===root+'preview/kiri-local/index.html'){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});res.end(cad);}
  else if(p===root+'kiri-local/bridge.js'){res.writeHead(200,{'Content-Type':'application/javascript'});res.end(bridge);}
+ else if(p===root+'kiri-local/cad.bundle.js'){res.writeHead(200,{'Content-Type':'application/javascript'});res.end(cadBundle);}
  else if(p===root+'kiri-local/print-config.mjs'){res.writeHead(200,{'Content-Type':'application/javascript'});res.end(printConfig);}
  else {res.writeHead(404);res.end('missing '+p);}
 });
@@ -29,6 +31,8 @@ try{
  const executablePath=process.env.CHROME_BIN||'/usr/bin/google-chrome';
  browser=await chromium.launch({executablePath,headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--enable-unsafe-swiftshader','--use-angle=swiftshader']});
  const page=await browser.newPage({viewport:{width:1300,height:850}});
+ const remoteRequests=[];
+ await page.route('https://**/*',async route=>{remoteRequests.push(route.request().url());await route.abort('blockedbyclient');});
  page.on('pageerror',e=>log.push('pageerror '+String(e)));
  page.on('console',m=>{if(m.type()==='error')log.push('console '+m.text())});
  await page.goto('http://127.0.0.1:'+port+root+'preview/kiri-local/?testShapes=1',{waitUntil:'domcontentloaded',timeout:45000});
@@ -212,6 +216,8 @@ try{
  await page.locator('#shapeColorPresets [data-color="#E83641"]').click();
  await page.locator('#shapeList button').nth(1).click({modifiers:['Control']});
  if((await page.locator('#selectedColorValue').textContent()).trim()!=='色が混在')throw Error('Mixed colors not indicated');
+ if(remoteRequests.length)throw Error('School CAD attempted external runtime traffic: '+JSON.stringify(remoteRequests));
+ console.log('PASS: no external CDN/network requests; full CAD library bundled locally');
  console.log('PASS: selected-shape recolor, multi-selection, undo, autosave, hole-color restore and mixed colors');
 
  // School printer choices use local state and never involve a remote service.

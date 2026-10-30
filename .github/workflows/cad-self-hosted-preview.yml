@@ -39,6 +39,12 @@ jobs:
       - name: Produce self-hosted CAD without runtime CDN imports
         run: node experiments/kiri-local/build-cad.mjs test-site
 
+      - name: Validate local CAD bundle and remove CDN importmap
+        run: |
+          test -s test-site/kiri-local/cad.bundle.js
+          node --check test-site/kiri-local/cad.bundle.js
+          ! grep -Eq 'cdn\\.jsdelivr\\.net|esm\\.sh|type="importmap"' test-site/index.html
+
       - name: Test CAD with external HTTPS completely blocked
         run: |
           CHROME_BIN="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"

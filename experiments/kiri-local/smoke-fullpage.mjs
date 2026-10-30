@@ -25,13 +25,13 @@ function cubeSTL(radius=10,height=20){
  triangles.forEach((tri,i)=>tri.forEach((ind,j)=>v[ind].forEach((n,k)=>vw.setFloat32(84+50*i+12+12*j+4*k,n,true))));
  return Array.from(new Uint8Array(buf));
 }
-let browser,log=[];
+let browser,page,log=[];
 try{
  await new Promise(done=>server.listen(port,'127.0.0.1',done));
  const safari=process.env.BROWSER==='webkit';
  console.log('SAME TAB KIRI test browser '+(safari?'WebKit':'Chromium'));
  browser=await(safari?webkit:chromium).launch(safari?{headless:true}:{executablePath:process.env.CHROME_BIN||'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--enable-webgl','--enable-unsafe-swiftshader','--use-angle=swiftshader','--disable-dev-shm-usage']});
- const page=await browser.newPage({viewport:{width:1300,height:900}});
+ page=await browser.newPage({viewport:{width:1300,height:900}});
  const workers=[];
  page.on('worker',w=>{workers.push(w.url());console.log('WORKER '+w.url());});
  page.on('pageerror',e=>log.push('PAGE ERROR '+String(e)+' '+(e.stack||'')));

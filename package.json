@@ -1,0 +1,18 @@
+{
+  "name": "manabi-3d-studio-build",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Offline-capable static CAD build assets for school use. Build-time npm only; never runtime services.",
+  "scripts": {
+    "build:cad": "node experiments/kiri-local/build-cad.mjs test-site"
+  },
+  "dependencies": {
+    "three": "0.180.0",
+    "three-bvh-csg": "0.0.18",
+    "three-mesh-bvh": "0.9.7"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}

@@ -8,6 +8,7 @@ on:
       - '.github/workflows/kiri-local-build.yml'
       - 'experiments/kiri-local/**'
       - 'index.html'
+      - 'package.json'
   workflow_dispatch:
 
 # Only the newest experimental build may publish to the shared Pages branch.
@@ -38,6 +39,9 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Install pinned local CAD bundler and libraries
+        run: npm install --no-audit --no-fund
+
       - name: Install Kiri build dependencies
         working-directory: upstream
         run: npm install --no-audit --no-fund --ignore-scripts
@@ -56,8 +60,8 @@ jobs:
       - name: Prepare self-hosted site
         run: |
           mkdir -p test-site
-          cp index.html test-site/index.html
           node experiments/kiri-local/build-static.mjs upstream test-site
+          node experiments/kiri-local/build-cad.mjs test-site
 
       - name: Validate packaged assets and module syntax
         run: |
@@ -68,7 +72,9 @@ jobs:
           node --check test-site/kiri-local/lib/main/kiri.js
           node --check test-site/kiri-local/lib/kiri/run/worker.js
           node --check test-site/kiri-local/lib/kiri/run/minion.js
-          node -e "const fs=require('fs');const s=fs.readFileSync('test-site/index.html','utf8');if(!s.includes('src=\"about:blank\"')||!s.includes('enterFullPageKiri'))process.exit(1)"
+          node -e "const fs=require('fs');const s=fs.readFileSync('test-site/index.html','utf8');if(!s.includes('src=\"about:blank\"')||!s.includes('cad.bundle.js')||s.includes('cdn.jsdelivr.net'))process.exit(1)"
+          test -s test-site/kiri-local/cad.bundle.js
+          node --check test-site/kiri-local/cad.bundle.js
           test -s test-site/kiri-local/bridge.js
           test -s test-site/kiri-local/auto-import.js
           grep -q 'auto-import.js' test-site/kiri-local/kiri/index.html
@@ -120,13 +126,14 @@ jobs:
           s=p.read_text(encoding='utf-8')
           if s.count('src="about:blank"')!=1:
               raise SystemExit('Full-page CAD must not eagerly load Kiri in an iframe')
-          if 'enterFullPageKiri' not in s:
-              raise SystemExit('Automatic CAD to Kiri route missing')
+          if 'src="/manabi-3d-studio/kiri-local/cad.bundle.js"' not in s:
+              raise SystemExit('Self-hosted CAD bundle missing')
           p.write_text(s,encoding='utf-8')
           PY
           touch publish/.nojekyll
           grep -F 'src="about:blank"' publish/preview/kiri-local/index.html
           test -s publish/kiri-local/lib/kiri/run/worker.js
+          test -s publish/kiri-local/cad.bundle.js
 
       - name: Publish experiment subdirectory while preserving original app
         working-directory: publish
